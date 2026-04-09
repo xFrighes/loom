@@ -1,0 +1,17 @@
+- ts
+  import { ref } from 'vue'
+
+  const count = ref(0)
+  const items = ['React', 'Vue', 'Svelte']
+
+- pug
+  div.app
+    h1 Loom Vue Demo
+
+    button
+      @click
+        count.value++
+      Count: {count}
+
+    each item in items
+      p.item {item}

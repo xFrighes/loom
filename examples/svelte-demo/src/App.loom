@@ -1,0 +1,15 @@
+- ts
+  let count = 0
+  const items = ['React', 'Vue', 'Svelte']
+
+- pug
+  div.app
+    h1 Loom Svelte Demo
+
+    button
+      @click
+        count++
+      Count: {count}
+
+    each item in items
+      p.item {item}

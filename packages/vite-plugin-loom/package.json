@@ -1,0 +1,34 @@
+{
+  "name": "vite-plugin-loom",
+  "version": "0.1.0",
+  "description": "Vite plugin for the Loom language",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --sourcemap",
+    "dev": "tsup src/index.ts --format esm --dts --sourcemap --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@loom-lang/compiler": "workspace:*"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.6.0"
+  }
+}

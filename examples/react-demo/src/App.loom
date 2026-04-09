@@ -1,0 +1,76 @@
+- ts
+  import { useState } from 'react'
+
+  const [count, setCount] = useState(0)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const items = ['React', 'Vue', 'Svelte']
+
+- pug
+  div.app
+    ::
+      font-family sans-serif
+      max-width 800px
+      margin 0 auto
+      padding 2rem
+      background {theme === 'light' ? '#fff' : '#1a1a1a'}
+      color {theme === 'light' ? '#000' : '#fff'}
+      min-height 100vh
+
+    h1 Loom Demo
+
+    // Theme toggle
+    button
+      :
+        type button
+      @click
+        setTheme(theme === 'light' ? 'dark' : 'light')
+      Toggle theme ({theme})
+
+    // Counter
+    div.counter
+      ::
+        margin-top 2rem
+        display flex
+        gap 1rem
+        align-items center
+
+      button
+        @click
+          setCount(count - 1)
+        -
+
+      span Count: {count}
+
+      button
+        @click
+          setCount(count + 1)
+        +
+
+    // Framework list
+    div.list
+      ::
+        margin-top 2rem
+
+      h2 Supported frameworks:
+      each item in items
+        p.item
+          ::
+            padding 0.5rem
+            border-left 3px solid #0066cc
+            margin 0.5rem 0
+          {item}
+
+    // Conditional
+    if count > 5
+      p.big
+        ::
+          color green
+          font-size 1.5rem
+        Count is greater than 5!
+    else if count < 0
+      p.negative
+        ::
+          color red
+        Count is negative
+    else
+      p Keep clicking...

@@ -1,0 +1,35 @@
+{
+  "name": "@loom-lang/compiler",
+  "version": "0.1.0",
+  "description": "Core compiler for the Loom language",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./prettier-plugin": {
+      "import": "./dist/prettier-plugin.js",
+      "types": "./dist/prettier-plugin.d.ts"
+    }
+  },
+  "bin": {
+    "loomc": "./dist/cli.js",
+    "loom-language-server": "./dist/language-server.js"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/cli.ts src/language-server.ts src/prettier-plugin.ts --format esm --dts --sourcemap --tsconfig tsconfig.build.json",
+    "dev": "tsup src/index.ts src/cli.ts src/language-server.ts src/prettier-plugin.ts --format esm --dts --sourcemap --tsconfig tsconfig.build.json --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}
