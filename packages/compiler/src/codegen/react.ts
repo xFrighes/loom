@@ -17,15 +17,30 @@ import type {
   StyleBlock,
 } from '../ast.js'
 import type { CodegenTarget, CompileResult, TargetGenerateOptions } from './target.js'
+import type { CompilerDiagnostic } from '../validate.js'
 import { collectComponentCSS, scopeKeyForElement } from './css.js'
+import { warnReactBehavior, warnMissingLoopKey } from './warnings.js'
+import { buildSourceMap, type Mapping } from '../sourcemap.js'
 
 // ─── React codegen ────────────────────────────────────────────────────────────
 
 export class ReactTarget implements CodegenTarget {
-  generate(file: LoomFile, componentName: string, options: TargetGenerateOptions = {}): CompileResult {
+  generate(
+    file: LoomFile,
+    componentName: string,
+    options: TargetGenerateOptions = {},
+  ): CompileResult {
     const ctx = new ReactGenContext(componentName, options)
     const code = ctx.generateComponent(file)
-    return { code, css: ctx.cssText }
+    const map = options.sourceFile
+      ? buildSourceMap(options.sourceFile, options.sourceContent ?? '', ctx.mappings)
+      : undefined
+    return {
+      code,
+      css: ctx.cssText,
+      map,
+      warnings: ctx.warnings.length > 0 ? ctx.warnings : undefined,
+    }
   }
 }
 
@@ -36,11 +51,42 @@ class ReactGenContext {
   private classMap: Map<string, string> = new Map()
   cssText = ''
   private hasCSSModules = false
+  readonly warnings: CompilerDiagnostic[] = []
+  /** Source map mappings accumulated during codegen. */
+  readonly mappings: Mapping[] = []
+  /** Tracks the current output line number (0-based). */
+  private outputLine = 0
 
   constructor(
     private componentName: string,
     private options: TargetGenerateOptions,
   ) {}
+
+  /**
+   * Push lines into an output array and record a source mapping for the first
+   * line if the node carries a source span.
+   */
+  private emit(
+    out: string[],
+    newLines: string[],
+    span?: { start: { line: number; column: number } },
+  ): void {
+    if (newLines.length > 0 && span) {
+      this.mappings.push({
+        genLine: this.outputLine,
+        genCol: 0,
+        srcLine: span.start.line - 1,
+        srcCol: span.start.column - 1,
+      })
+    }
+    out.push(...newLines)
+    this.outputLine += newLines.length
+  }
+
+  private pushLines(out: string[], newLines: string[]): void {
+    out.push(...newLines)
+    this.outputLine += newLines.length
+  }
 
   generateComponent(file: LoomFile): string {
     // Collect styles first to build classMap before generating markup
@@ -53,10 +99,10 @@ class ReactGenContext {
     const lines: string[] = []
 
     // Imports
-    lines.push(`import React from 'react'`)
+    this.pushLines(lines, [`import React from 'react'`])
     if (this.hasCSSModules) {
       const cssImportPath = this.options.cssImportPath ?? `./${this.componentName}.module.css`
-      lines.push(`import styles from ${JSON.stringify(cssImportPath)}`)
+      this.pushLines(lines, [`import styles from ${JSON.stringify(cssImportPath)}`])
     }
 
     // Logic zone imports (extracted first)
@@ -71,40 +117,45 @@ class ReactGenContext {
     }
 
     if (logicImports.length > 0) {
-      lines.push(...logicImports)
+      if (file.logic?.span) {
+        this.mappings.push({
+          genLine: this.outputLine,
+          genCol: 0,
+          srcLine: file.logic.span.start.line - 1,
+          srcCol: 0,
+        })
+      }
+      this.pushLines(lines, logicImports)
     }
 
-    lines.push('')
+    this.pushLines(lines, [''])
 
     // Function signature
     const sig = buildReactSignature(this.componentName, file.generics, file.props)
-    lines.push(sig.open)
+    this.pushLines(lines, [sig.open])
     if (sig.destructure) {
-      lines.push(`  ${sig.destructure}`)
-      lines.push('')
+      this.pushLines(lines, [`  ${sig.destructure}`, ''])
     }
 
     // Logic body
     if (logicBody.length > 0) {
       const trimmed = trimLeadingBlank(logicBody)
-      lines.push(...trimmed.map(l => `  ${l}`))
-      lines.push('')
+      this.pushLines(lines, [...trimmed.map(l => `  ${l}`), ''])
     }
 
     // Markup
-    lines.push('  return (')
+    this.pushLines(lines, ['  return ('])
     if (file.markup && file.markup.length > 0) {
       const markupLines = this.renderMarkupList(file.markup, '    ')
-      lines.push(...markupLines)
+      this.pushLines(lines, markupLines)
     } else {
-      lines.push('    <></>')
+      this.pushLines(lines, ['    <></>'])
     }
-    lines.push('  )')
+    this.pushLines(lines, ['  )'])
 
-    lines.push(sig.close)
+    this.pushLines(lines, [sig.close])
 
-    lines.push('')
-    lines.push(`export default ${this.componentName}`)
+    this.pushLines(lines, ['', `export default ${this.componentName}`])
 
     return lines.join('\n')
   }
@@ -159,6 +210,20 @@ class ReactGenContext {
   }
 
   private renderNode(node: MarkupNode, indent: string): string[] {
+    const lines = this.renderNodeInner(node, indent)
+    if (lines.length > 0 && node.span) {
+      this.mappings.push({
+        genLine: this.outputLine,
+        genCol: indent.length,
+        srcLine: node.span.start.line - 1,
+        srcCol: node.span.start.column - 1,
+      })
+    }
+    this.outputLine += lines.length
+    return lines
+  }
+
+  private renderNodeInner(node: MarkupNode, indent: string): string[] {
     switch (node.kind) {
       case 'element': return this.renderElement(node, indent)
       case 'text': return this.renderText(node, indent)
@@ -209,6 +274,7 @@ class ReactGenContext {
     if (node.behaviors) {
       for (const beh of node.behaviors) {
         attrParts.push(renderBehaviorAttr(beh))
+        this.warnings.push(...warnReactBehavior(beh, beh.span))
       }
     }
 
@@ -357,6 +423,10 @@ class ReactGenContext {
       if (keyAttr && keyAttr.kind === 'dynamic') {
         keyExpr = ` key={${keyAttr.expr}}`
       }
+    }
+
+    if (!keyExpr) {
+      this.warnings.push(...warnMissingLoopKey(node.list, node.span))
     }
 
     const indexParam = node.index ? `, ${node.index}` : ''

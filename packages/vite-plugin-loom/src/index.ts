@@ -57,13 +57,14 @@ export default function loom(options: LoomPluginOptions = {}): Plugin {
 
         return {
           code: transformed.code,
-          map: transformed.map ?? null,
+          // esbuild's map already covers tsx→js; the loom→tsx map is in result.map
+          map: transformed.map ?? result.map ?? null,
         }
       }
 
       return {
         code: result.code,
-        map: null,
+        map: result.map ?? null,
       }
     },
   }
@@ -107,6 +108,7 @@ function loadCompileResult(
       componentName,
       target,
       cssImportPath: target === 'react' ? createStyleId(sourcePath) : undefined,
+      sourceFile: sourcePath,
     })
     cache.set(cacheKey, result)
     return result

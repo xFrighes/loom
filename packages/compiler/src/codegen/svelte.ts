@@ -15,18 +15,27 @@ import type {
   StyleBlock,
 } from '../ast.js'
 import type { CodegenTarget, CompileResult, TargetGenerateOptions } from './target.js'
+import type { CompilerDiagnostic } from '../validate.js'
 import { generateCSS, scopeKeyForElement } from './css.js'
+import { warnMissingLoopKey } from './warnings.js'
+import { buildSourceMap, type Mapping } from '../sourcemap.js'
 
 export class SvelteTarget implements CodegenTarget {
-  generate(file: LoomFile, componentName: string, _options: TargetGenerateOptions = {}): CompileResult {
+  generate(file: LoomFile, componentName: string, options: TargetGenerateOptions = {}): CompileResult {
     const ctx = new SvelteGenContext(componentName)
     const code = ctx.generateComponent(file)
-    return { code, css: '' } // CSS is embedded in the .svelte file
+    const map = options.sourceFile
+      ? buildSourceMap(options.sourceFile, options.sourceContent ?? '', ctx.mappings)
+      : undefined
+    return { code, css: '', map, warnings: ctx.warnings.length > 0 ? ctx.warnings : undefined }
   }
 }
 
 class SvelteGenContext {
   private cssBlocks: Array<{ scopeKey: string; block: StyleBlock; className: string }> = []
+  readonly warnings: CompilerDiagnostic[] = []
+  readonly mappings: Mapping[] = []
+  private outputLine = 0
 
   constructor(private componentName: string) {}
 
@@ -35,41 +44,52 @@ class SvelteGenContext {
 
     const parts: string[] = []
 
+    const push = (...lines: string[]) => {
+      parts.push(...lines)
+      this.outputLine += lines.length
+    }
+
     // <script lang="ts">
-    parts.push('<script lang="ts">')
+    push('<script lang="ts">')
 
     if (file.generics) {
-      parts.push(`// Generic parameter: ${file.generics}`)
+      push(`// Generic parameter: ${file.generics}`)
     }
 
     if (file.props && file.props.length > 0) {
       for (const p of buildSvelteProps(file.props)) {
-        parts.push(p)
+        push(p)
       }
-      parts.push('')
+      push('')
     }
 
     if (file.logic) {
-      parts.push(file.logic.src)
+      if (file.logic.span) {
+        this.mappings.push({
+          genLine: this.outputLine,
+          genCol: 0,
+          srcLine: file.logic.span.start.line - 1,
+          srcCol: 0,
+        })
+      }
+      push(file.logic.src)
     }
 
-    parts.push('</script>')
-    parts.push('')
+    push('</script>', '')
 
     // Markup
     if (file.markup && file.markup.length > 0) {
       for (const node of file.markup) {
-        parts.push(...this.renderNode(node, ''))
+        push(...this.renderNode(node, ''))
       }
     }
 
     // <style>
     const allCss = this.cssBlocks.map(b => generateCSS(b.block, b.className)).join('\n\n')
     if (allCss.trim()) {
-      parts.push('')
-      parts.push('<style>')
-      parts.push(allCss)
-      parts.push('</style>')
+      push('', '<style>')
+      push(allCss)
+      push('</style>')
     }
 
     return parts.join('\n')
@@ -105,6 +125,20 @@ class SvelteGenContext {
   }
 
   private renderNode(node: MarkupNode, indent: string): string[] {
+    const lines = this.renderNodeInner(node, indent)
+    if (lines.length > 0 && node.span) {
+      this.mappings.push({
+        genLine: this.outputLine,
+        genCol: indent.length,
+        srcLine: node.span.start.line - 1,
+        srcCol: node.span.start.column - 1,
+      })
+    }
+    this.outputLine += lines.length
+    return lines
+  }
+
+  private renderNodeInner(node: MarkupNode, indent: string): string[] {
     switch (node.kind) {
       case 'element': return this.renderElement(node, indent)
       case 'text': return this.renderText(node, indent)
@@ -241,6 +275,10 @@ class SvelteGenContext {
     if (node.children[0]?.kind === 'element') {
       const keyAttr = node.children[0].data?.find(d => d.kind === 'dynamic' && d.name === 'key')
       if (keyAttr?.kind === 'dynamic') keyExpr = keyAttr.expr
+    }
+
+    if (!keyExpr) {
+      this.warnings.push(...warnMissingLoopKey(node.list, node.span))
     }
 
     const indexPart = node.index ? `, ${node.index}` : ''

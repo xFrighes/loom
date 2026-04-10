@@ -15,13 +15,19 @@ import type {
   StyleBlock,
 } from '../ast.js'
 import type { CodegenTarget, CompileResult, TargetGenerateOptions } from './target.js'
+import type { CompilerDiagnostic } from '../validate.js'
 import { collectComponentCSS, scopeKeyForElement } from './css.js'
+import { warnMissingLoopKey } from './warnings.js'
+import { buildSourceMap, type Mapping } from '../sourcemap.js'
 
 export class VueTarget implements CodegenTarget {
-  generate(file: LoomFile, componentName: string, _options: TargetGenerateOptions = {}): CompileResult {
+  generate(file: LoomFile, componentName: string, options: TargetGenerateOptions = {}): CompileResult {
     const ctx = new VueGenContext(componentName)
     const code = ctx.generateComponent(file)
-    return { code, css: ctx.cssText }
+    const map = options.sourceFile
+      ? buildSourceMap(options.sourceFile, options.sourceContent ?? '', ctx.mappings)
+      : undefined
+    return { code, css: ctx.cssText, map, warnings: ctx.warnings.length > 0 ? ctx.warnings : undefined }
   }
 }
 
@@ -29,6 +35,9 @@ class VueGenContext {
   private styleBlocks: Array<{ scopeKey: string; block: StyleBlock }> = []
   private classMap: Map<string, string> = new Map()
   cssText = ''
+  readonly warnings: CompilerDiagnostic[] = []
+  readonly mappings: Mapping[] = []
+  private outputLine = 0
 
   constructor(private componentName: string) {}
 
@@ -40,45 +49,56 @@ class VueGenContext {
 
     const parts: string[] = []
 
+    const push = (...lines: string[]) => {
+      parts.push(...lines)
+      this.outputLine += lines.length
+    }
+
     // <script setup>
-    parts.push('<script setup lang="ts">')
+    push('<script setup lang="ts">')
 
     if (file.generics) {
-      parts.push(`// Generic: ${file.generics}`)
+      push(`// Generic: ${file.generics}`)
     }
 
     if (file.props && file.props.length > 0) {
-      parts.push(buildVueProps(file.props, file.generics))
+      push(buildVueProps(file.props, file.generics))
     }
 
     if (file.logic) {
-      parts.push(file.logic.src)
+      if (file.logic.span) {
+        this.mappings.push({
+          genLine: this.outputLine,
+          genCol: 0,
+          srcLine: file.logic.span.start.line - 1,
+          srcCol: 0,
+        })
+      }
+      push(file.logic.src)
     }
 
-    parts.push('</script>')
-    parts.push('')
+    push('</script>', '')
 
     // <template>
-    parts.push('<template>')
+    push('<template>')
     if (file.markup && file.markup.length > 0) {
       const filtered = file.markup.filter(n => n.kind !== 'comment')
       if (filtered.length > 1) {
         // Vue 3 supports multiple root nodes natively
         for (const node of filtered) {
-          parts.push(...this.renderNode(node, '  '))
+          push(...this.renderNode(node, '  '))
         }
       } else if (filtered.length === 1) {
-        parts.push(...this.renderNode(filtered[0], '  '))
+        push(...this.renderNode(filtered[0], '  '))
       }
     }
-    parts.push('</template>')
-    parts.push('')
+    push('</template>', '')
 
     // <style module>
     if (this.cssText.trim()) {
-      parts.push('<style module>')
-      parts.push(this.cssText)
-      parts.push('</style>')
+      push('<style module>')
+      push(this.cssText)
+      push('</style>')
     }
 
     return parts.join('\n')
@@ -113,6 +133,20 @@ class VueGenContext {
   }
 
   private renderNode(node: MarkupNode, indent: string): string[] {
+    const lines = this.renderNodeInner(node, indent)
+    if (lines.length > 0 && node.span) {
+      this.mappings.push({
+        genLine: this.outputLine,
+        genCol: indent.length,
+        srcLine: node.span.start.line - 1,
+        srcCol: node.span.start.column - 1,
+      })
+    }
+    this.outputLine += lines.length
+    return lines
+  }
+
+  private renderNodeInner(node: MarkupNode, indent: string): string[] {
     switch (node.kind) {
       case 'element': return this.renderElement(node, indent)
       case 'text': return this.renderText(node, indent)
@@ -297,6 +331,10 @@ class VueGenContext {
     if (node.children[0]?.kind === 'element') {
       const keyAttr = node.children[0].data?.find(d => d.kind === 'dynamic' && d.name === 'key')
       if (keyAttr?.kind === 'dynamic') keyExpr = keyAttr.expr
+    }
+
+    if (!keyExpr) {
+      this.warnings.push(...warnMissingLoopKey(node.list, node.span))
     }
 
     const indexPart = node.index ? `, ${node.index}` : ''

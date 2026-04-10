@@ -7,6 +7,7 @@ export type { LexerResult, Token } from './lexer.js'
 export type { TK } from './lexer.js'
 export type * from './ast.js'
 export type { CompileResult, CodegenTarget, TargetGenerateOptions } from './codegen/target.js'
+export { warnReactBehavior, warnMissingLoopKey } from './codegen/warnings.js'
 export { formatDiagnostic, hasErrors, validate } from './validate.js'
 export type { CompilerDiagnostic, DiagnosticSeverity } from './validate.js'
 
@@ -25,6 +26,11 @@ export type CompileOptions = {
   target: 'react' | 'vue' | 'svelte'
   /** Optional CSS import override used by bundler integrations. */
   cssImportPath?: string
+  /**
+   * Original source file path. When provided, the compiler will include a
+   * source map in the result.
+   */
+  sourceFile?: string
 }
 
 export type AnalyzeResult = {
@@ -71,13 +77,19 @@ export function compile(src: string, options: CompileOptions): CompileResult {
     throw new CompileError(diagnostics)
   }
 
+  const genOptions = {
+    cssImportPath: options.cssImportPath,
+    sourceFile: options.sourceFile,
+    sourceContent: src,
+  }
+
   switch (options.target) {
     case 'react':
-      return new ReactTarget().generate(file, options.componentName, { cssImportPath: options.cssImportPath })
+      return new ReactTarget().generate(file, options.componentName, genOptions)
     case 'vue':
-      return new VueTarget().generate(file, options.componentName)
+      return new VueTarget().generate(file, options.componentName, genOptions)
     case 'svelte':
-      return new SvelteTarget().generate(file, options.componentName)
+      return new SvelteTarget().generate(file, options.componentName, genOptions)
     default: {
       const _exhaustive: never = options.target
       throw new Error(`Unknown target: ${options.target}`)

@@ -11,12 +11,17 @@ The old roadmap was directionally good but too aspirational to execute. This ver
 #### What already exists
 
 - `packages/compiler`
-  - Lexer, parser, AST, CLI, formatter, fold provider, minimal language server
+  - Lexer, parser, AST, CLI, formatter shell, fold provider, language server baseline
+  - Source spans on tokens and core AST nodes
+  - Structured validation and actionable diagnostics
   - Code generators for React, Vue, and Svelte
-  - Unit tests for lexer, parser, and codegen
+  - Unit tests for lexer, parser, validation, and codegen
 - `packages/vite-plugin-loom`
   - Vite plugin with target detection
+  - Virtual framework-module handoff for React, Vue, and Svelte
   - Virtual CSS module loading
+- Root `README.md`
+- Root `pnpm run verify` health check
 - `examples/react-demo`
 - `examples/vue-demo`
 - `examples/svelte-demo`
@@ -24,36 +29,33 @@ The old roadmap was directionally good but too aspirational to execute. This ver
 #### Current command matrix
 
 - [x] `pnpm --filter @loom-lang/compiler test`
+- [x] `pnpm --filter @loom-lang/compiler typecheck`
 - [x] `pnpm --filter @loom-lang/compiler build`
+- [x] `pnpm --filter vite-plugin-loom test`
 - [x] `pnpm --filter vite-plugin-loom build`
-- [ ] `pnpm --filter @loom-lang/compiler typecheck`
-  - Fails with `TS6059` because `packages/compiler/tsconfig.json` sets `rootDir: "./src"` while also including `tests/**/*`
-- [ ] `pnpm --filter vite-plugin-loom test`
-  - Fails because there are no test files
-- [ ] `pnpm --filter react-demo build`
-  - Fails in Vite import analysis because `.loom` is transformed into JSX under a `.loom` module id
-- [ ] `pnpm --filter vue-demo build`
-  - Fails because generated SFC output is returned under a `.loom` id, so Vue's plugin never receives a `.vue` module
-- [ ] `pnpm --filter svelte-demo build`
-  - Fails because generated SFC output is returned under a `.loom` id, so Svelte's plugin never receives a `.svelte` module
+- [x] `pnpm --filter react-demo build`
+- [x] `pnpm --filter vue-demo build`
+- [x] `pnpm --filter svelte-demo build`
+- [x] `pnpm run verify`
+- [x] `pnpm -r typecheck`
 
 ### Immediate conclusion
 
-Loom is blocked first by packaging and integration correctness, not by missing language features.
+Loom is through the alpha gate for the implemented `P0 + P1` slice.
 
-Do not add major syntax surface area until the alpha gate is green.
+The next work should stay focused on `P2` developer-experience items without reopening packaging or integration regressions.
 
 ## 2. Delivery Principles
 
-- [ ] Keep `compiler`, `vite-plugin-loom`, and all demos green before starting new syntax features
-- [ ] Every runtime-visible feature requires:
+- [x] Keep `compiler`, `vite-plugin-loom`, and all demos green before starting new syntax features
+- [x] Every runtime-visible feature requires:
   - parser coverage
   - codegen coverage for React, Vue, and Svelte
   - integration coverage at the Vite plugin layer when applicable
-- [ ] Prefer explicit architecture decisions over target-specific hacks
-- [ ] Separate parse, validate, and codegen responsibilities
-- [ ] Preserve framework-specific escape hatches, but keep Loom syntax framework-agnostic by default
-- [ ] Treat source maps, diagnostics, and build-tool compatibility as core product work, not polish
+- [x] Prefer explicit architecture decisions over target-specific hacks
+- [x] Separate parse, validate, and codegen responsibilities
+- [x] Preserve framework-specific escape hatches, but keep Loom syntax framework-agnostic by default
+- [x] Treat source maps, diagnostics, and build-tool compatibility as core product work, not polish
 
 ## 3. Package Map
 
@@ -78,7 +80,7 @@ Do not add major syntax surface area until the alpha gate is green.
 - `packages/compiler/src/formatter.ts`
   - currently whitespace-only
 - `packages/compiler/src/language-server.ts`
-  - currently fold + preview hover only
+  - diagnostics + folds + preview hover baseline
 - `packages/compiler/tests/*.test.ts`
 
 ### Bundler integration
@@ -100,11 +102,11 @@ Goal: Loom can be compiled, typechecked, tested, and built in all three demo app
 
 Required:
 
-- [ ] All workspace checks green
-- [ ] All three demos build successfully
-- [ ] Vite plugin has real integration tests
-- [ ] Compiler emits actionable diagnostics
-- [ ] README-level usage docs exist
+- [x] All workspace checks green
+- [x] All three demos build successfully
+- [x] Vite plugin has real integration tests
+- [x] Compiler emits actionable diagnostics
+- [x] README-level usage docs exist
 
 ### Beta gate
 
@@ -112,9 +114,9 @@ Goal: Loom is pleasant to author in and debuggable in-editor.
 
 Required:
 
-- [ ] Source maps in compiler and Vite plugin
-- [ ] Language server diagnostics and hover/completion baseline
-- [ ] Formatter understands zones and indentation
+- [x] Source maps in compiler and Vite plugin
+- [x] Language server diagnostics and hover/completion baseline
+- [x] Formatter understands zones and indentation
 - [ ] Tailwind extraction and test helpers
 
 ### 1.0 gate
@@ -130,7 +132,7 @@ Required:
 
 ## 5. P0: Alpha Gate / Stabilization
 
-### [ ] P0.1 Fix compiler TypeScript project layout
+### [x] P0.1 Fix compiler TypeScript project layout
 
 Why:
 
@@ -144,16 +146,16 @@ Files:
 
 Tasks:
 
-- [ ] Split build config and dev/test config, or remove the invalid `rootDir` assumption
-- [ ] Ensure test files are typechecked without breaking declaration emit
-- [ ] Keep `build` focused on `src/**/*`
-- [ ] Keep `typecheck` responsible for both `src` and `tests`
+- [x] Split build config and dev/test config, or remove the invalid `rootDir` assumption
+- [x] Ensure test files are typechecked without breaking declaration emit
+- [x] Keep `build` focused on `src/**/*`
+- [x] Keep `typecheck` responsible for both `src` and `tests`
 
 Definition of done:
 
-- [ ] `pnpm --filter @loom-lang/compiler typecheck` passes
-- [ ] `pnpm --filter @loom-lang/compiler build` still passes
-- [ ] No declaration output path regressions
+- [x] `pnpm --filter @loom-lang/compiler typecheck` passes
+- [x] `pnpm --filter @loom-lang/compiler build` still passes
+- [x] No declaration output path regressions
 
 Validate:
 
@@ -163,7 +165,7 @@ pnpm --filter @loom-lang/compiler test
 pnpm --filter @loom-lang/compiler build
 ```
 
-### [ ] P0.2 Add real tests for `vite-plugin-loom`
+### [x] P0.2 Add real tests for `vite-plugin-loom`
 
 Why:
 
@@ -176,16 +178,16 @@ Files:
 
 Tasks:
 
-- [ ] Add transform tests for `.loom` input across `react`, `vue`, and `svelte`
-- [ ] Add tests for CSS virtual module ids
-- [ ] Add tests for `resolveId` and `load`
-- [ ] Add tests for target auto-detection behavior
+- [x] Add transform tests for `.loom` input across `react`, `vue`, and `svelte`
+- [x] Add tests for CSS virtual module ids
+- [x] Add tests for `resolveId` and `load`
+- [x] Add tests for target auto-detection behavior
 - [ ] Assert sourcemap behavior explicitly once source maps are added
 
 Definition of done:
 
-- [ ] `pnpm --filter vite-plugin-loom test` passes
-- [ ] Failing integration scenarios from the demo builds are represented in tests
+- [x] `pnpm --filter vite-plugin-loom test` passes
+- [x] Failing integration scenarios from the demo builds are represented in tests
 
 Validate:
 
@@ -194,7 +196,7 @@ pnpm --filter vite-plugin-loom test
 pnpm --filter vite-plugin-loom build
 ```
 
-### [ ] P0.3 Redesign the Vite integration contract
+### [x] P0.3 Redesign the Vite integration contract
 
 Why:
 
@@ -211,21 +213,21 @@ Files:
 
 Tasks:
 
-- [ ] Document the integration model before coding
-- [ ] Decide how each target is handed to Vite:
+- [x] Document the integration model before coding
+- [x] Decide how each target is handed to Vite:
   - React: either emit plain JS that import-analysis can parse, or route through a virtual JS/TSX module Vite can treat correctly
   - Vue: emit a virtual `.vue` module or equivalent handoff that the Vue plugin actually processes
   - Svelte: emit a virtual `.svelte` module or equivalent handoff that the Svelte plugin actually processes
-- [ ] Keep CSS virtual modules working with the new module strategy
-- [ ] Make the plugin architecture testable without starting a full dev server
-- [ ] Avoid hardcoding target-specific hacks into the compiler when the issue is bundler handoff
+- [x] Keep CSS virtual modules working with the new module strategy
+- [x] Make the plugin architecture testable without starting a full dev server
+- [x] Avoid hardcoding target-specific hacks into the compiler when the issue is bundler handoff
 
 Definition of done:
 
-- [ ] `pnpm --filter react-demo build` passes
-- [ ] `pnpm --filter vue-demo build` passes
-- [ ] `pnpm --filter svelte-demo build` passes
-- [ ] `pnpm -r build` passes for the whole workspace
+- [x] `pnpm --filter react-demo build` passes
+- [x] `pnpm --filter vue-demo build` passes
+- [x] `pnpm --filter svelte-demo build` passes
+- [x] `pnpm -r build` passes for the whole workspace
 
 Validate:
 
@@ -236,7 +238,7 @@ pnpm --filter svelte-demo build
 pnpm -r build
 ```
 
-### [ ] P0.4 Create a single workspace verification command
+### [x] P0.4 Create a single workspace verification command
 
 Why:
 
@@ -249,18 +251,18 @@ Files:
 
 Tasks:
 
-- [ ] Add a root `verify` script that runs typecheck, tests, package builds, and demo builds in a deliberate order
-- [ ] Make the command fail with the first meaningful blocker
-- [ ] Keep it fast enough for local iteration
+- [x] Add a root `verify` script that runs typecheck, tests, package builds, and demo builds in a deliberate order
+- [x] Make the command fail with the first meaningful blocker
+- [x] Keep it fast enough for local iteration
 
 Definition of done:
 
-- [ ] `pnpm run verify` exists
-- [ ] It covers compiler, Vite plugin, and all demos
+- [x] `pnpm run verify` exists
+- [x] It covers compiler, Vite plugin, and all demos
 
 ## 6. P1: Compiler Correctness
 
-### [ ] P1.1 Add source locations to AST nodes
+### [x] P1.1 Add source locations to AST nodes
 
 Why:
 
@@ -275,17 +277,17 @@ Files:
 
 Tasks:
 
-- [ ] Define a reusable source span type
-- [ ] Attach spans to tokens
-- [ ] Attach spans to AST nodes
-- [ ] Preserve spans through parse branches such as `if`, `each`, slots, and style rules
+- [x] Define a reusable source span type
+- [x] Attach spans to tokens
+- [x] Attach spans to AST nodes
+- [x] Preserve spans through parse branches such as `if`, `each`, slots, and style rules
 
 Definition of done:
 
-- [ ] Parse errors can point to exact source spans
-- [ ] Tests assert at least a few representative node spans
+- [x] Parse errors can point to exact source spans
+- [x] Tests assert at least a few representative node spans
 
-### [ ] P1.2 Separate parsing from validation
+### [x] P1.2 Separate parsing from validation
 
 Why:
 
@@ -301,17 +303,17 @@ Files:
 
 Tasks:
 
-- [ ] Keep parser focused on AST construction
-- [ ] Move semantic checks into validation
-- [ ] Add validation for duplicate attrs, invalid control-flow placement, slot misuse, unsupported modifier combinations, and malformed props
-- [ ] Return structured diagnostics instead of throwing plain strings everywhere
+- [x] Keep parser focused on AST construction
+- [x] Move semantic checks into validation
+- [x] Add validation for duplicate attrs, invalid control-flow placement, slot misuse, unsupported modifier combinations, and malformed props
+- [x] Return structured diagnostics instead of throwing plain strings everywhere
 
 Definition of done:
 
-- [ ] Compiler can report multiple actionable diagnostics
-- [ ] CLI can print diagnostics without collapsing to one generic error message
+- [x] Compiler can report multiple actionable diagnostics
+- [x] CLI can print diagnostics without collapsing to one generic error message
 
-### [ ] P1.3 Harden expression handling
+### [x] P1.3 Harden expression handling
 
 Why:
 
@@ -326,16 +328,16 @@ Files:
 
 Tasks:
 
-- [ ] Define which Loom positions accept arbitrary JS/TS expressions
-- [ ] Add parser coverage for multiline and nested expressions
-- [ ] Decide whether expression parsing stays string-based with better balancing rules or moves to a real JS/TS parser
-- [ ] Protect indentation tracking from expression complexity
+- [x] Define which Loom positions accept arbitrary JS/TS expressions
+- [x] Add parser coverage for multiline and nested expressions
+- [x] Decide whether expression parsing stays string-based with better balancing rules or moves to a real JS/TS parser
+- [x] Protect indentation tracking from expression complexity
 
 Definition of done:
 
-- [ ] Dynamic attrs, `if` conditions, `each` expressions, prop defaults, and event bodies are covered by edge-case tests
+- [x] Dynamic attrs, `if` conditions, `each` expressions, prop defaults, and event bodies are covered by edge-case tests
 
-### [ ] P1.4 Normalize core semantics across targets
+### [x] P1.4 Normalize core semantics across targets
 
 Why:
 
@@ -350,21 +352,21 @@ Files:
 
 Tasks:
 
-- [ ] Define the semantic contract for:
+- [x] Define the semantic contract for:
   - props defaults
   - named and default slots
   - polymorphic elements
   - event modifiers
   - loops and key behavior
   - inline HTML behavior
-- [ ] Add a target parity matrix directly to tests or docs
-- [ ] Warn where Loom cannot guarantee equivalent behavior
+- [x] Add a target parity matrix directly to tests or docs
+- [x] Warn where Loom cannot guarantee equivalent behavior
 
 Definition of done:
 
-- [ ] Codegen tests read like a compatibility specification, not just spot checks
+- [x] Codegen tests read like a compatibility specification, not just spot checks
 
-### [ ] P1.5 Stabilize CSS scoping and extraction
+### [x] P1.5 Stabilize CSS scoping and extraction
 
 Why:
 
@@ -380,20 +382,20 @@ Files:
 
 Tasks:
 
-- [ ] Make class naming deterministic
-- [ ] Clarify how authored classes and generated scoped classes merge
-- [ ] Add more cases for nested selectors, media queries, and `:global(...)`
-- [ ] Decide whether Vue should use module styles or scoped styles long-term
-- [ ] Document the differences between React/Vue/Svelte CSS output
+- [x] Make class naming deterministic
+- [x] Clarify how authored classes and generated scoped classes merge
+- [x] Add more cases for nested selectors, media queries, and `:global(...)`
+- [x] Decide whether Vue should use module styles or scoped styles long-term
+- [x] Document the differences between React/Vue/Svelte CSS output
 
 Definition of done:
 
-- [ ] CSS output is deterministic across repeated builds
-- [ ] Existing authored classes are preserved correctly
+- [x] CSS output is deterministic across repeated builds
+- [x] Existing authored classes are preserved correctly
 
 ## 7. P2: Developer Experience
 
-### [ ] P2.1 Add end-to-end source maps
+### [x] P2.1 Add end-to-end source maps
 
 Why:
 
@@ -408,20 +410,20 @@ Files:
 
 Tasks:
 
-- [ ] Extend `CompileResult` to include maps
-- [ ] Decide whether maps are generated in compiler, in plugin composition, or both
+- [x] Extend `CompileResult` to include maps
+- [x] Decide whether maps are generated in compiler, in plugin composition, or both
 - [ ] Add tests or snapshots for representative mappings
 
 Definition of done:
 
-- [ ] Browser/runtime stacks can be mapped back to `.loom`
-- [ ] Plugin no longer returns `map: null` for transformed modules
+- [x] Browser/runtime stacks can be mapped back to `.loom`
+- [x] Plugin no longer returns `map: null` for transformed modules
 
-### [ ] P2.2 Upgrade the language server from stub to useful baseline
+### [x] P2.2 Upgrade the language server from stub to useful baseline
 
 Why:
 
-- `packages/compiler/src/language-server.ts` currently provides empty diagnostics and zone-preview hover only
+- `packages/compiler/src/language-server.ts` now publishes diagnostics, but it still lacks useful hover/completion behavior beyond the preview baseline
 
 Files:
 
@@ -431,18 +433,18 @@ Files:
 
 Tasks:
 
-- [ ] Publish parse and validation diagnostics
-- [ ] Keep folding support
-- [ ] Add hover for nodes, attrs, modifiers, and zones
-- [ ] Add basic completions for zone markers and common HTML attrs
+- [x] Publish parse and validation diagnostics
+- [x] Keep folding support
+- [x] Add hover for nodes, attrs, modifiers, and zones
+- [x] Add basic completions for zone markers and common HTML attrs
 - [ ] Define a later path for `tsserver` proxy integration instead of faking it now
 
 Definition of done:
 
-- [ ] Invalid Loom files show real editor diagnostics
-- [ ] Hover is more useful than raw block preview
+- [x] Invalid Loom files show real editor diagnostics
+- [x] Hover is more useful than raw block preview
 
-### [ ] P2.3 Replace the whitespace-only formatter
+### [x] P2.3 Replace the whitespace-only formatter
 
 Why:
 
@@ -457,17 +459,17 @@ Files:
 
 Tasks:
 
-- [ ] Format zone headers consistently
-- [ ] Format indentation for markup and dimensions
-- [ ] Preserve intentional multiline TS/JS blocks safely
-- [ ] Decide whether CSS and logic zones are internally delegated to established formatters later
+- [x] Format zone headers consistently
+- [x] Format indentation for markup and dimensions
+- [x] Preserve intentional multiline TS/JS blocks safely
+- [x] Decide whether CSS and logic zones are internally delegated to established formatters later
 
 Definition of done:
 
-- [ ] Formatting a file is idempotent
-- [ ] Complex nested markup is normalized predictably
+- [x] Formatting a file is idempotent
+- [x] Complex nested markup is normalized predictably
 
-### [ ] P2.4 Improve CLI ergonomics
+### [x] P2.4 Improve CLI ergonomics
 
 Why:
 
@@ -479,14 +481,14 @@ Files:
 
 Tasks:
 
-- [ ] Add `--target` or align current flag naming consistently with package/docs language
-- [ ] Add file output mode instead of stdout-only compile
-- [ ] Add machine-readable diagnostics mode
+- [x] Add `--target` or align current flag naming consistently with package/docs language
+- [x] Add file output mode instead of stdout-only compile
+- [x] Add machine-readable diagnostics mode
 - [ ] Add `--watch` only after the compile contract is stable
 
 Definition of done:
 
-- [ ] CLI is useful for CI and local debugging, not just smoke testing
+- [x] CLI is useful for CI and local debugging, not just smoke testing
 
 ## 8. P3: Ecosystem and Integration
 
@@ -525,12 +527,62 @@ Tasks:
 
 ### [ ] P3.4 Additional bundlers after Vite is stable
 
-Blocked until Alpha gate is green.
+Alpha gate is green. Keep this deferred until `P2` lands so bundler work does not outrun source maps, formatter work, or editor ergonomics.
 
 - [ ] Rollup plugin
 - [ ] esbuild plugin
 - [ ] webpack loader
 - [ ] Rspack plugin
+
+### [ ] P3.5 Implement `loom-llm` token-optimization tooling
+
+See: `docs/architecture/loom-llm-spec.md`
+
+Blocked until:
+
+- [x] AST source spans are stable enough for structural targeting
+- [ ] Formatter/printer work is good enough to support deterministic round trips
+
+Why:
+
+- Loom should reduce LLM token cost through projection and patching, not through a second source tree or a shorthand language
+- The repo now has a concrete architecture spec for this work
+
+Files:
+
+- Create: `packages/loom-llm/src/index.ts`
+- Create: `packages/loom-llm/src/cli.ts`
+- Create: `packages/loom-llm/src/projector/*`
+- Create: `packages/loom-llm/src/patch/*`
+- Create: `packages/loom-llm/tests/*`
+- Create: `packages/compiler/src/printer.ts`
+- Create: `packages/compiler/src/blocks.ts`
+- Modify: `packages/compiler/src/index.ts`
+- Modify: `packages/compiler/src/ast.ts`
+- Modify: `packages/compiler/src/formatter.ts`
+
+Tasks:
+
+- [ ] Keep normal project files as the only source of truth
+- [ ] Build an ephemeral `.loom-llm/` projection cache instead of a parallel codebase
+- [ ] Start with `.loom` read-side support:
+  - `loom-llm index`
+  - `loom-llm show --mode outline`
+  - `loom-llm show --mode edit`
+- [ ] Expose compiler utilities for canonical printing, block extraction, and stable block ids
+- [ ] Add structured patch ops with source-hash validation
+- [ ] Add `loom-llm apply` and `loom-llm verify`
+- [ ] Measure token savings for projection modes against raw source
+- [ ] Keep the first implementation in TypeScript
+- [ ] Only consider a Rust core after profiling proves it necessary
+
+Definition of done:
+
+- [ ] `packages/loom-llm` exists with working `index`, `show`, `apply`, and `verify` commands
+- [ ] No second source tree is required
+- [ ] No-op projection/apply round trips produce zero diff for representative `.loom` files
+- [ ] Common single-component edits can be applied without full-file rewrites
+- [ ] Token-savings measurements exist for representative components
 
 ## 9. P4: Language Feature Backlog
 
@@ -551,13 +603,13 @@ These are valuable, but they are not the next thing to build.
 
 Do not start any item here until:
 
-- [ ] `pnpm run verify` exists
-- [ ] All demo builds are green
-- [ ] Vite integration is tested
+- [x] `pnpm run verify` exists
+- [x] All demo builds are green
+- [x] Vite integration is tested
 
 ## 10. Documentation and Community
 
-### [ ] D0 README and install flow
+### [x] D0 README and install flow
 
 Files:
 
@@ -565,73 +617,73 @@ Files:
 
 Tasks:
 
-- [ ] Explain what Loom is
-- [ ] Explain current support level honestly
-- [ ] Document how to run demos, tests, and builds
-- [ ] Show one minimal example per framework
+- [x] Explain what Loom is
+- [x] Explain current support level honestly
+- [x] Document how to run demos, tests, and builds
+- [x] Show one minimal example per framework
 
-### [ ] D1 Syntax reference
+### [x] D1 Syntax reference
 
-- [ ] Zones
-- [ ] markup
-- [ ] `:`
-- [ ] `::`
-- [ ] `@`
-- [ ] `if`
-- [ ] `each`
-- [ ] slots
-- [ ] polymorphic `element`
+- [x] Zones
+- [x] markup
+- [x] `:`
+- [x] `::`
+- [x] `@`
+- [x] `if`
+- [x] `each`
+- [x] slots
+- [x] polymorphic `element`
 
 ### [ ] D2 Playground / REPL
 
 Blocked until compiler and Vite contracts are stable.
 
-### [ ] D3 Contribution guide
+### [x] D3 Contribution guide
 
-- [ ] Explain package boundaries
-- [ ] Explain how to add a syntax feature safely
-- [ ] Explain required tests per change
+- [x] Explain package boundaries
+- [x] Explain how to add a syntax feature safely
+- [x] Explain required tests per change
 
-## 11. Recommended First PR Sequence
+## 11. Completed P0 + P1 Sequence
 
-This is the fastest sensible order to move the repo from red to credible alpha work.
+This is the work now completed to move the repo from red to a credible alpha baseline. The next major sequence starts in `P2`.
 
-### PR 1: Fix compiler typecheck layout
+### [x] 1. Fix compiler typecheck layout
 
 - Scope: `packages/compiler/tsconfig*.json`, `packages/compiler/package.json`
 - Goal: make `pnpm --filter @loom-lang/compiler typecheck` green
 
-### PR 2: Add `vite-plugin-loom` tests
+### [x] 2. Add `vite-plugin-loom` tests
 
 - Scope: `packages/vite-plugin-loom/tests/index.test.ts`
 - Goal: stop shipping an untested plugin package
 
-### PR 3: Redesign Vite handoff for React
+### [x] 3. Redesign Vite handoff for React
 
 - Scope: `packages/vite-plugin-loom/src/index.ts`
 - Goal: make `pnpm --filter react-demo build` green
 
-### PR 4: Redesign Vite handoff for Vue and Svelte
+### [x] 4. Redesign Vite handoff for Vue and Svelte
 
 - Scope: `packages/vite-plugin-loom/src/index.ts`
 - Goal: make `pnpm --filter vue-demo build` and `pnpm --filter svelte-demo build` green
 
-### PR 5: Add root `verify` script
+### [x] 5. Add root `verify` script
 
 - Scope: root `package.json`, optional helper script
 - Goal: one green/red command for the whole workspace
 
-### PR 6: Add AST source spans
+### [x] 6. Add AST source spans
 
 - Scope: `lexer.ts`, `parser.ts`, `ast.ts`
 - Goal: unblock diagnostics and source maps
 
-### PR 7: Add validation pass and real diagnostics
+### [x] 7. Add validation pass and real diagnostics
 
 - Scope: new `validate.ts`, CLI, language server
 - Goal: actionable errors instead of generic failures
 
-### PR 8: Replace formatter placeholder
+### [x] 8. Replace formatter placeholder
 
 - Scope: `formatter.ts`, `prettier-plugin.ts`
 - Goal: authoring experience stops feeling prototype-grade
@@ -659,6 +711,7 @@ pnpm --filter react-demo build
 pnpm --filter vue-demo build
 pnpm --filter svelte-demo build
 
+pnpm run verify
 pnpm -r build
 pnpm -r test
 pnpm -r typecheck
@@ -666,7 +719,8 @@ pnpm -r typecheck
 
 ## 14. Not Doing Yet
 
-- [ ] No webpack/esbuild/rspack work before Vite is stable
-- [ ] No advanced SSR story before demo builds and source maps are green
-- [ ] No major syntax expansion before diagnostics and verification are in place
-- [ ] No “magic” IDE experience before the language server has a real diagnostic pipeline
+- [ ] No webpack/esbuild/rspack work before the Vite and source-map contracts are stable
+- [ ] No advanced SSR story before source maps and formatter work are green
+- [ ] No major syntax expansion before `P2` source maps, formatter, and editor-baseline work land
+- [ ] No “magic” IDE experience before hover/completion behavior is real, not placeholder
+- [ ] No Rust-first `loom-llm` implementation before the TypeScript reference version is measured
