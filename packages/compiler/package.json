@@ -2,6 +2,24 @@
   "name": "@loom-lang/compiler",
   "version": "0.1.0",
   "description": "Core compiler for the Loom language",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xFrighes/loom.git",
+    "directory": "packages/compiler"
+  },
+  "bugs": {
+    "url": "https://github.com/xFrighes/loom/issues"
+  },
+  "homepage": "https://github.com/xFrighes/loom#readme",
+  "keywords": [
+    "loom",
+    "compiler",
+    "dsl",
+    "react",
+    "vue",
+    "svelte"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -20,16 +38,32 @@
     "loomc": "./dist/cli.js",
     "loom-language-server": "./dist/language-server.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup src/index.ts src/cli.ts src/language-server.ts src/prettier-plugin.ts --format esm --dts --sourcemap --tsconfig tsconfig.build.json",
     "dev": "tsup src/index.ts src/cli.ts src/language-server.ts src/prettier-plugin.ts --format esm --dts --sourcemap --tsconfig tsconfig.build.json --watch",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "benchmark": "tsx scripts/benchmark.ts",
+    "benchmark:flame": "0x -o -D flamegraph -- node --import tsx scripts/benchmark.ts"
+  },
+  "dependencies": {
+    "typescript": "^5.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",
+    "@vue/compiler-sfc": "^3.4.0",
+    "0x": "^6.0.0",
+    "svelte": "^4.0.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.4.0",
+    "tsx": "^4.21.0",
     "vitest": "^1.6.0"
   }
 }
