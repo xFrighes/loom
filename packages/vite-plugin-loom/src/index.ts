@@ -4,6 +4,7 @@ import { compile } from '@loom-lang/compiler'
 import type { CompileResult } from '@loom-lang/compiler'
 import { transformWithEsbuild } from 'vite'
 import type { Plugin, ResolvedConfig } from 'vite'
+import remapping from '@ampproject/remapping'
 
 export type LoomPluginOptions = {
   /**
@@ -55,10 +56,18 @@ export default function loom(options: LoomPluginOptions = {}): Plugin {
           { loader: 'tsx', jsx: 'transform' },
         )
 
+        // Compose source maps: loom -> tsx -> js
+        let map = transformed.map
+        if (result.map && transformed.map) {
+          map = remapping(
+            [transformed.map as any, result.map as any],
+            () => null,
+          ) as any
+        }
+
         return {
           code: transformed.code,
-          // esbuild's map already covers tsx→js; the loom→tsx map is in result.map
-          map: transformed.map ?? result.map ?? null,
+          map: map ?? result.map ?? null,
         }
       }
 
@@ -95,12 +104,12 @@ function loadCompileResult(
   target: 'react' | 'vue' | 'svelte',
   cache: Map<string, CompileResult>,
 ): CompileResult {
-  const cacheKey = `${target}:${sourcePath}`
+  ctx.addWatchFile(sourcePath)
+  const src = readFileSync(sourcePath, 'utf8')
+  const cacheKey = `${target}:${sourcePath}:${src}`
   const cached = cache.get(cacheKey)
   if (cached) return cached
 
-  ctx.addWatchFile(sourcePath)
-  const src = readFileSync(sourcePath, 'utf8')
   const componentName = path.basename(sourcePath, '.loom')
 
   try {

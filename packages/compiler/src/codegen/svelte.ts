@@ -22,7 +22,7 @@ import { buildSourceMap, type Mapping } from '../sourcemap.js'
 
 export class SvelteTarget implements CodegenTarget {
   generate(file: LoomFile, componentName: string, options: TargetGenerateOptions = {}): CompileResult {
-    const ctx = new SvelteGenContext(componentName)
+    const ctx = new SvelteGenContext(componentName, options)
     const code = ctx.generateComponent(file)
     const map = options.sourceFile
       ? buildSourceMap(options.sourceFile, options.sourceContent ?? '', ctx.mappings)
@@ -37,7 +37,7 @@ class SvelteGenContext {
   readonly mappings: Mapping[] = []
   private outputLine = 0
 
-  constructor(private componentName: string) {}
+  constructor(private componentName: string, private options: TargetGenerateOptions = {}) {}
 
   generateComponent(file: LoomFile): string {
     if (file.markup) this.collectStyles(file.markup)
@@ -47,6 +47,13 @@ class SvelteGenContext {
     const push = (...lines: string[]) => {
       parts.push(...lines)
       this.outputLine += lines.length
+    }
+
+    // SSR: SvelteKit module context for server-side exports
+    if (this.options.ssr) {
+      push('<script context="module" lang="ts">')
+      push(`  // Server-side module context for ${this.componentName}`)
+      push('</script>', '')
     }
 
     // <script lang="ts">
@@ -62,6 +69,60 @@ class SvelteGenContext {
       }
       push('')
     }
+
+    // Reactivity: State
+    if (file.state && file.state.length > 0) {
+      for (const s of file.state) {
+        const type = s.type !== 'any' ? `: ${s.type}` : ''
+        const def = s.defaultValue !== undefined ? ` = ${s.defaultValue}` : ''
+        push(`let ${s.name}${type}${def};`)
+      }
+      push('')
+    }
+
+    // Reactivity: Computed
+    if (file.computed && file.computed.length > 0) {
+      for (const c of file.computed) {
+        push(`$: ${c.name} = ${c.expr};`)
+      }
+      push('')
+    }
+
+    // Reactivity: Lifecycles
+    const svelteImports = new Set<string>()
+    if (file.onMount && file.onMount.length > 0) svelteImports.add('onMount')
+    if (file.onUpdate && file.onUpdate.length > 0) svelteImports.add('afterUpdate')
+    if (file.onUnmount && file.onUnmount.length > 0) svelteImports.add('onDestroy')
+
+    if (svelteImports.size > 0) {
+      push(`import { ${[...svelteImports].sort().join(', ')} } from 'svelte';`)
+    }
+
+    if (file.onMount && file.onMount.length > 0) {
+      push('onMount(() => {')
+      for (const s of file.onMount) {
+        push(`  ${s.src}`)
+      }
+      push('});')
+    }
+
+    if (file.onUpdate && file.onUpdate.length > 0) {
+      push('afterUpdate(() => {')
+      for (const s of file.onUpdate) {
+        push(`  ${s.src}`)
+      }
+      push('});')
+    }
+
+    if (file.onUnmount && file.onUnmount.length > 0) {
+      push('onDestroy(() => {')
+      for (const s of file.onUnmount) {
+        push(`  ${s.src}`)
+      }
+      push('});')
+    }
+
+    if (svelteImports.size > 0) push('')
 
     if (file.logic) {
       if (file.logic.span) {
@@ -80,12 +141,12 @@ class SvelteGenContext {
     // Markup
     if (file.markup && file.markup.length > 0) {
       for (const node of file.markup) {
-        push(...this.renderNode(node, ''))
+        push(...this.renderNode(node, '', file))
       }
     }
 
     // <style>
-    const allCss = this.cssBlocks.map(b => generateCSS(b.block, b.className)).join('\n\n')
+    const allCss = this.cssBlocks.map(b => generateCSS(b.block, b.className).cssText).join('\n\n')
     if (allCss.trim()) {
       push('', '<style>')
       push(allCss)
@@ -124,8 +185,8 @@ class SvelteGenContext {
     }
   }
 
-  private renderNode(node: MarkupNode, indent: string): string[] {
-    const lines = this.renderNodeInner(node, indent)
+  private renderNode(node: MarkupNode, indent: string, file: LoomFile): string[] {
+    const lines = this.renderNodeInner(node, indent, file)
     if (lines.length > 0 && node.span) {
       this.mappings.push({
         genLine: this.outputLine,
@@ -138,12 +199,12 @@ class SvelteGenContext {
     return lines
   }
 
-  private renderNodeInner(node: MarkupNode, indent: string): string[] {
+  private renderNodeInner(node: MarkupNode, indent: string, file: LoomFile): string[] {
     switch (node.kind) {
-      case 'element': return this.renderElement(node, indent)
+      case 'element': return this.renderElement(node, indent, file)
       case 'text': return this.renderText(node, indent)
-      case 'if': return this.renderIf(node, indent)
-      case 'each': return this.renderEach(node, indent)
+      case 'if': return this.renderIf(node, indent, file)
+      case 'each': return this.renderEach(node, indent, file)
       case 'slot-def': return this.renderSlotDef(node, indent)
       case 'slot-use': return []
       case 'comment': return [`${indent}<!-- ${node.value} -->`]
@@ -151,7 +212,7 @@ class SvelteGenContext {
     }
   }
 
-  private renderElement(node: ElementNode, indent: string): string[] {
+  private renderElement(node: ElementNode, indent: string, file: LoomFile): string[] {
     const key = scopeKeyForElement(node)
 
     // Polymorphic
@@ -188,7 +249,7 @@ class SvelteGenContext {
 
     if (node.behaviors) {
       for (const beh of node.behaviors) {
-        attrs.push(renderSvelteBehavior(beh))
+        attrs.push(this.renderSvelteBehavior(beh))
       }
     }
 
@@ -208,19 +269,23 @@ class SvelteGenContext {
     } else {
       lines.push(`${indent}<${tag}${attrsStr}>`)
 
-      // Named slots
+      // Named slots — scoped slots use let:param directives
       for (const slot of slotChildren) {
         if (slot.name) {
-          lines.push(`${indent}  <svelte:fragment slot="${slot.name}">`)
+          const letAttrs =
+            slot.slotParams && slot.slotParams.length > 0
+              ? ' ' + slot.slotParams.map((p) => `let:${p}`).join(' ')
+              : ''
+          lines.push(`${indent}  <svelte:fragment slot="${slot.name}"${letAttrs}>`)
           for (const child of slot.children) {
-            lines.push(...this.renderNode(child, indent + '    '))
+            lines.push(...this.renderNode(child, indent + '    ', file))
           }
           lines.push(`${indent}  </svelte:fragment>`)
         }
       }
 
       for (const child of defaultChildren) {
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file))
       }
 
       lines.push(`${indent}</${tag}>`)
@@ -237,38 +302,38 @@ class SvelteGenContext {
     return [`${indent}${interpolated}`]
   }
 
-  private renderIf(node: IfNode, indent: string): string[] {
+  private renderIf(node: IfNode, indent: string, file: LoomFile): string[] {
     const lines: string[] = []
     lines.push(`${indent}{#if ${node.condition}}`)
     for (const child of node.consequent) {
-      lines.push(...this.renderNode(child, indent + '  '))
+      lines.push(...this.renderNode(child, indent + '  ', file))
     }
     if (node.alternate) {
-      lines.push(...this.renderAlt(node.alternate, indent))
+      lines.push(...this.renderAlt(node.alternate, indent, file))
     }
     lines.push(`${indent}{/if}`)
     return lines
   }
 
-  private renderAlt(node: IfNode['alternate'], indent: string): string[] {
+  private renderAlt(node: IfNode['alternate'], indent: string, file: LoomFile): string[] {
     if (!node) return []
     const lines: string[] = []
     if (node.kind === 'elseif') {
       lines.push(`${indent}{:else if ${node.condition}}`)
       for (const child of node.consequent) {
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file))
       }
-      if (node.alternate) lines.push(...this.renderAlt(node.alternate, indent))
+      if (node.alternate) lines.push(...this.renderAlt(node.alternate, indent, file))
     } else if (node.kind === 'else') {
       lines.push(`${indent}{:else}`)
       for (const child of node.children) {
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file))
       }
     }
     return lines
   }
 
-  private renderEach(node: EachNode, indent: string): string[] {
+  private renderEach(node: EachNode, indent: string, file: LoomFile): string[] {
     const lines: string[] = []
 
     let keyExpr = ''
@@ -285,15 +350,43 @@ class SvelteGenContext {
     const keyPart = keyExpr ? ` (${keyExpr})` : ''
     lines.push(`${indent}{#each ${node.list} as ${node.item}${indexPart}${keyPart}}`)
     for (const child of node.children) {
-      lines.push(...this.renderNode(child, indent + '  '))
+      lines.push(...this.renderNode(child, indent + '  ', file))
     }
     lines.push(`${indent}{/each}`)
     return lines
   }
 
   private renderSlotDef(node: SlotDefNode, indent: string): string[] {
-    if (node.name) return [`${indent}<slot name="${node.name}" />`]
+    if (node.name) {
+      if (node.params && node.params.length > 0) {
+        // Scoped slot: expose params as slot props via shorthand
+        const slotAttrs = node.params.map((p) => `{${p}}`).join(' ')
+        return [`${indent}<slot name="${node.name}" ${slotAttrs} />`]
+      }
+      return [`${indent}<slot name="${node.name}" />`]
+    }
     return [`${indent}<slot />`]
+  }
+
+  private renderSvelteBehavior(beh: BehaviorBlock): string {
+    const modifiers = beh.modifiers.map((m) => {
+      if (m === 'prevent') return 'preventDefault'
+      if (m === 'stop') return 'stopPropagation'
+      return m
+    })
+    const modifierStr = modifiers.length > 0 ? '|' + modifiers.join('|') : ''
+    const event =
+      beh.event.startsWith('on') && beh.event.length > 2
+        ? beh.event.slice(2, 3).toLowerCase() + beh.event.slice(3)
+        : beh.event
+
+    const bodyLines = beh.body.map((s) => s.src).filter((l) => l.trim())
+    const handler =
+      bodyLines.length === 1
+        ? `{() => { ${bodyLines[0].trim()} }}`
+        : `{() => { ${bodyLines.map((l) => l.trim()).join('; ')} }}`
+
+    return `on:${event}${modifierStr}=${handler}`
   }
 }
 
@@ -318,19 +411,7 @@ function renderSvelteDataAttr(attr: DataAttr): string {
       return `{...${attr.expr}}`
     case 'as':
       return ''
+    case 'bind':
+      return `bind:${attr.name}={${attr.expr}}`
   }
-}
-
-function renderSvelteBehavior(beh: BehaviorBlock): string {
-  const modifierStr = beh.modifiers.length > 0 ? '|' + beh.modifiers.join('|') : ''
-  const event = beh.event.startsWith('on') && beh.event.length > 2
-    ? beh.event.slice(2, 3).toLowerCase() + beh.event.slice(3)
-    : beh.event
-
-  const bodyLines = beh.body.split('\n').filter(l => l.trim())
-  const handler = bodyLines.length === 1
-    ? `{() => { ${bodyLines[0].trim()} }}`
-    : `{() => { ${bodyLines.map(l => l.trim()).join('; ')} }}`
-
-  return `on:${event}${modifierStr}=${handler}`
 }

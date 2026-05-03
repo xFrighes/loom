@@ -6,6 +6,8 @@ import type {
   LoomFile,
   MarkupNode,
   PropDecl,
+  StateDecl,
+  ComputedDecl,
   SourceSpan,
 } from './ast.js'
 
@@ -79,22 +81,66 @@ export function validate(file: LoomFile): CompilerDiagnostic[] {
     diagnostics.push(...validateProp(prop))
   }
 
+  for (const state of file.state ?? []) {
+    diagnostics.push(...validateState(state))
+  }
+
+  for (const computed of file.computed ?? []) {
+    diagnostics.push(...validateComputed(computed))
+  }
+
   diagnostics.push(...validateMarkupList(file.markup ?? [], undefined))
 
   return diagnostics
 }
 
+function validateIdentifier(name: string, label: string, span: SourceSpan | undefined): CompilerDiagnostic[] {
+  if (!name) {
+    return diagnostic(`loom/${label}-name`, `${capitalize(label)} name cannot be empty.`, span)
+  }
+
+  if (!/^[A-Za-z_$][\w$]*$/.test(name)) {
+    return diagnostic(`loom/${label}-name`, `Invalid ${label} name "${name}".`, span)
+  }
+
+  return []
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
 function validateProp(prop: PropDecl): CompilerDiagnostic[] {
   const diagnostics: CompilerDiagnostic[] = []
 
-  if (!prop.name) {
-    diagnostics.push(...diagnostic('loom/prop-name', 'Prop name cannot be empty.', prop.span))
-  } else if (!/^[A-Za-z_$][\w$]*$/.test(prop.name)) {
-    diagnostics.push(...diagnostic('loom/prop-name', `Invalid prop name "${prop.name}".`, prop.span))
-  }
+  diagnostics.push(...validateIdentifier(prop.name, 'prop', prop.span))
 
   if (!prop.type.trim()) {
     diagnostics.push(...diagnostic('loom/prop-type', `Prop "${prop.name || '<anonymous>'}" must declare a type.`, prop.span))
+  }
+
+  return diagnostics
+}
+
+function validateState(state: StateDecl): CompilerDiagnostic[] {
+  const diagnostics: CompilerDiagnostic[] = []
+
+  diagnostics.push(...validateIdentifier(state.name, 'state', state.span))
+
+  if (!state.type.trim()) {
+    diagnostics.push(...diagnostic('loom/state-type', `State "${state.name || '<anonymous>'}" must declare a type.`, state.span))
+  }
+
+  return diagnostics
+}
+
+function validateComputed(computed: ComputedDecl): CompilerDiagnostic[] {
+  const diagnostics: CompilerDiagnostic[] = []
+
+  diagnostics.push(...validateIdentifier(computed.name, 'computed', computed.span))
+
+  if (!computed.expr.trim()) {
+    diagnostics.push(...diagnostic('loom/computed-expr', `Computed "${computed.name || '<anonymous>'}" must declare an expression.`, computed.span))
   }
 
   return diagnostics

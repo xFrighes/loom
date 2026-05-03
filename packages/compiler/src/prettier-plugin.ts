@@ -1,4 +1,4 @@
-import { formatLoom } from './formatter.js'
+import { formatLoom } from './printer.js'
 
 export const languages = [
   {

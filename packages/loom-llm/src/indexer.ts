@@ -1,0 +1,266 @@
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
+import path from 'node:path'
+import { analyze, compile } from '@loom-lang/compiler'
+import type { CompilerDiagnostic } from '@loom-lang/compiler'
+import {
+  ensureCacheLayout,
+  hashText,
+  readManifest,
+  readProjection,
+  resolveCacheRoot,
+  writeManifest,
+  writeProjection,
+} from './cache.js'
+import { createLoomProjection } from './projector/loom.js'
+import type {
+  IndexManifest,
+  IndexManifestEntry,
+  IndexResult,
+  LoomProjection,
+  VerifyFileResult,
+  VerifyTargetResult,
+} from './types.js'
+
+type SharedOptions = {
+  root?: string
+  cacheDir?: string
+}
+
+type IndexOptions = SharedOptions & {
+  inputs?: string[]
+}
+
+type ProjectionLookupOptions = SharedOptions & {
+  input: string
+}
+
+import { tryRustIndexWorkspace } from './rust-indexer.js'
+
+export function indexWorkspace(options: IndexOptions = {}): IndexResult {
+  const root = resolveRoot(options.root)
+  const rustResult = tryRustIndexWorkspace({ ...options, root })
+  if (rustResult) {
+    return rustResult
+  }
+
+  const cacheRoot = resolveCacheRoot(root, options.cacheDir)
+  ensureCacheLayout(cacheRoot)
+
+  const existingManifest = readManifest(cacheRoot)
+  const existingEntries = new Map(
+    (existingManifest?.files ?? []).map((entry) => [entry.sourcePath, entry]),
+  )
+  const files = collectLoomFiles(root, options.inputs)
+  const nextEntries: IndexManifestEntry[] = []
+  let indexed = 0
+  let reused = 0
+
+  for (const absolutePath of files) {
+    const source = readFileSync(absolutePath, 'utf8')
+    const sourceHash = hashText(source)
+    const sourcePath = toProjectPath(root, absolutePath)
+    const cachedEntry = existingEntries.get(sourcePath)
+
+    if (
+      cachedEntry &&
+      cachedEntry.sourceHash === sourceHash &&
+      readProjection(cacheRoot, cachedEntry.cacheFile)
+    ) {
+      nextEntries.push(cachedEntry)
+      reused += 1
+      continue
+    }
+
+    const projection = createLoomProjection(root, absolutePath, source)
+    const cacheFile = writeProjection(cacheRoot, projection)
+    nextEntries.push({
+      sourcePath,
+      sourceHash: projection.sourceHash,
+      cacheFile,
+      language: 'loom',
+      tokenEstimates: projection.tokenEstimates,
+      diagnostics: projection.diagnostics.length,
+      generatedAt: projection.generatedAt,
+    })
+    indexed += 1
+  }
+
+  if (options.inputs && options.inputs.length > 0) {
+    for (const entry of existingEntries.values()) {
+      if (!nextEntries.some((candidate) => candidate.sourcePath === entry.sourcePath)) {
+        nextEntries.push(entry)
+      }
+    }
+  }
+
+  nextEntries.sort((left, right) => left.sourcePath.localeCompare(right.sourcePath))
+
+  const manifest: IndexManifest = {
+    version: 1,
+    root,
+    generatedAt: new Date().toISOString(),
+    files: nextEntries,
+  }
+
+  writeManifest(cacheRoot, manifest)
+
+  const removed =
+    existingEntries.size === 0 || (options.inputs && options.inputs.length > 0)
+      ? 0
+      : Math.max(0, existingEntries.size - nextEntries.length)
+
+  return { manifest, indexed, reused, removed }
+}
+
+export function ensureProjectionForPath(options: ProjectionLookupOptions): LoomProjection {
+  const root = resolveRoot(options.root)
+  const cacheRoot = resolveCacheRoot(root, options.cacheDir)
+  const absolutePath = resolveInputPath(root, options.input)
+  const sourcePath = toProjectPath(root, absolutePath)
+  const source = readFileSync(absolutePath, 'utf8')
+  const sourceHash = hashText(source)
+  const manifest = readManifest(cacheRoot)
+  const existingEntry = manifest?.files.find((entry) => entry.sourcePath === sourcePath)
+
+  if (existingEntry && existingEntry.sourceHash === sourceHash) {
+    const cachedProjection = readProjection(cacheRoot, existingEntry.cacheFile)
+    if (cachedProjection) return cachedProjection
+  }
+
+  const projection = createLoomProjection(root, absolutePath, source)
+  const cacheFile = writeProjection(cacheRoot, projection)
+  const nextEntries = new Map((manifest?.files ?? []).map((entry) => [entry.sourcePath, entry]))
+  nextEntries.set(sourcePath, {
+    sourcePath,
+    sourceHash: projection.sourceHash,
+    cacheFile,
+    language: 'loom',
+    tokenEstimates: projection.tokenEstimates,
+    diagnostics: projection.diagnostics.length,
+    generatedAt: projection.generatedAt,
+  })
+
+  writeManifest(cacheRoot, {
+    version: 1,
+    root,
+    generatedAt: new Date().toISOString(),
+    files: [...nextEntries.values()].sort((left, right) =>
+      left.sourcePath.localeCompare(right.sourcePath),
+    ),
+  })
+
+  return projection
+}
+
+export function verifyWorkspace(options: IndexOptions = {}): VerifyFileResult[] {
+  const root = resolveRoot(options.root)
+  const files = collectLoomFiles(root, options.inputs)
+  return files.map((absolutePath) =>
+    verifyLoomSource(readFileSync(absolutePath, 'utf8'), toProjectPath(root, absolutePath)),
+  )
+}
+
+export function verifyLoomSource(source: string, sourcePath: string): VerifyFileResult {
+  const { diagnostics } = analyze(source)
+  const hasErrors = diagnostics.some((diagnostic) => diagnostic.severity === 'error')
+
+  const targets: VerifyTargetResult[] = hasErrors
+    ? []
+    : (['react', 'vue', 'svelte'] as const).map((target) => {
+        try {
+          compile(source, {
+            componentName: path.basename(sourcePath, '.loom'),
+            target,
+            sourceFile: sourcePath,
+          })
+          return { target, ok: true }
+        } catch (error) {
+          return {
+            target,
+            ok: false,
+            error: formatCompileError(error),
+          }
+        }
+      })
+
+  return {
+    sourcePath,
+    ok: !hasErrors && targets.every((target) => target.ok),
+    diagnostics,
+    targets,
+  }
+}
+
+export function formatDiagnostics(diagnostics: CompilerDiagnostic[]): string[] {
+  return diagnostics.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`)
+}
+
+function collectLoomFiles(root: string, inputs?: string[]): string[] {
+  if (inputs && inputs.length > 0) {
+    const files = inputs.flatMap((input) => collectFromInput(root, resolveInputPath(root, input)))
+    return [...new Set(files)].sort()
+  }
+
+  return walkForLoomFiles(root).sort()
+}
+
+function collectFromInput(root: string, absolutePath: string): string[] {
+  if (!existsSync(absolutePath)) {
+    throw new Error(`Path does not exist: ${absolutePath}`)
+  }
+
+  const entry = path.resolve(absolutePath)
+  const stats = lstatSync(entry)
+  if (stats.isDirectory()) {
+    return walkForLoomFiles(entry)
+  }
+  if (entry.endsWith('.loom')) return [entry]
+  return []
+}
+
+function walkForLoomFiles(directory: string): string[] {
+  const files: string[] = []
+
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const absolutePath = path.join(directory, entry.name)
+
+    if (entry.isDirectory()) {
+      if (IGNORED_DIRECTORIES.has(entry.name)) continue
+      files.push(...walkForLoomFiles(absolutePath))
+      continue
+    }
+
+    if (entry.isFile() && absolutePath.endsWith('.loom')) {
+      files.push(absolutePath)
+    }
+  }
+
+  return files
+}
+
+function resolveRoot(root?: string): string {
+  return path.resolve(root ?? process.cwd())
+}
+
+function resolveInputPath(root: string, input: string): string {
+  const absolute = path.resolve(root, input)
+  const relative = path.relative(root, absolute)
+  if (relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))) {
+    return absolute
+  }
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Path is outside the workspace root: ${input}`)
+  }
+  return absolute
+}
+
+function toProjectPath(root: string, absolutePath: string): string {
+  return path.relative(root, absolutePath).split(path.sep).join('/')
+}
+
+function formatCompileError(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return String(error)
+}
+
+const IGNORED_DIRECTORIES = new Set(['.git', '.loom-llm', 'dist', 'node_modules'])

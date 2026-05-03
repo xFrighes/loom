@@ -3,23 +3,38 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { analyze, compile, CompileError, formatDiagnostic } from './index.js'
-import { formatLoom } from './formatter.js'
+import { formatLoom } from './printer.js'
 import type { CompilerDiagnostic } from './index.js'
 
-export const runCli = (argv: string[], io = defaultIo()) => {
+export type CliOptions = {
+  readFile?: (path: string, encoding: 'utf8') => string
+  writeFile?: (path: string, data: string, encoding: 'utf8') => void
+  watchFile?: (path: string, callback: () => void) => { close: () => void }
+  exit?: (code: number) => void
+}
+
+export type CliIo = {
+  stdout: (value: string) => void
+  stderr: (value: string) => void
+  exit?: (code: number) => void
+}
+
+export const runCli = (argv: string[], io: CliIo = defaultIo(), options: CliOptions = {}) => {
   const args = argv.slice(2)
   const command = args[0] ?? 'check'
   const input = args[1]
 
-  // --target takes precedence over --framework (legacy alias)
-  const framework = (
-    readFlag(args, '--target') ??
-    readFlag(args, '--framework') ??
-    'react'
-  ) as 'react' | 'vue' | 'svelte'
+  const readFile = options.readFile ?? readFileSync
+  const writeFile = options.writeFile ?? writeFileSync
+
+  const framework = (readFlag(args, '--target') ?? readFlag(args, '--framework') ?? 'react') as
+    | 'react'
+    | 'vue'
+    | 'svelte'
 
   const outputPath = readFlag(args, '--output')
   const jsonMode = args.includes('--json')
+  const watchMode = args.includes('--watch')
 
   const fail = (message: string) => {
     if (jsonMode) {
@@ -27,104 +42,132 @@ export const runCli = (argv: string[], io = defaultIo()) => {
     } else {
       io.stderr(`${message}\n`)
     }
-    if (io.exit) io.exit(1)
+    const exit = options.exit ?? io.exit
+    if (exit) exit(1)
     return 1
   }
 
   if (!input) {
     return fail(
-      'Usage: loomc <compile|check|format> <file.loom> [--target react|vue|svelte] [--output <file>] [--json]',
+      'Usage: loomc <compile|check|format> <file.loom> [--target react|vue|svelte] [--output <file>] [--json] [--watch]',
     )
   }
 
   const filePath = resolve(process.cwd(), input)
-  let source = ''
-  try {
-    source = readFileSync(filePath, 'utf8')
-  } catch (e: any) {
-    return fail(`Could not read file: ${e.message}`)
-  }
 
-  try {
-    if (command === 'compile') {
-      const componentName = input.split(/[/\\]/).pop()?.split('.')[0] || 'Component'
-      const result = compile(source, { componentName, target: framework })
+  const execute = () => {
+    let source = ''
+    try {
+      source = readFile(filePath, 'utf8') as string
+    } catch (e: any) {
+      return fail(`Could not read file: ${e.message}`)
+    }
 
-      if (jsonMode) {
-        io.stdout(
-          JSON.stringify({
-            code: result.code,
-            css: result.css || null,
-            map: result.map ?? null,
-            warnings: result.warnings ?? [],
-          }) + '\n',
-        )
-      } else if (outputPath) {
-        const resolved = resolve(process.cwd(), outputPath)
-        writeFileSync(resolved, result.code, 'utf8')
-        if (result.css) {
-          const cssPath = resolved.replace(/\.[^.]+$/, '.module.css')
-          writeFileSync(cssPath, result.css, 'utf8')
-        }
-        io.stdout(`Written to ${resolved}\n`)
-      } else {
-        io.stdout(`${result.code}\n`)
-        if (result.css) {
-          io.stdout(`\n/* Loom CSS */\n${result.css}\n`)
-        }
-        if (result.warnings && result.warnings.length > 0) {
-          for (const w of result.warnings) {
-            io.stderr(`${formatDiagnostic(w)}\n`)
+    try {
+      if (command === 'compile') {
+        const rawName = input.split(/[/\\]/).pop()?.split('.')[0] || 'Component'
+        const componentName = sanitizeComponentName(rawName)
+        const result = compile(source, { componentName, target: framework })
+
+        if (jsonMode) {
+          io.stdout(
+            JSON.stringify({
+              code: result.code,
+              css: result.css || null,
+              map: result.map ?? null,
+              warnings: result.warnings ?? [],
+            }) + '\n',
+          )
+        } else if (outputPath) {
+          const resolved = resolve(process.cwd(), outputPath)
+          writeFile(resolved, result.code, 'utf8')
+          if (result.css) {
+            const cssPath = resolved.replace(/\.[^.]+$/, '.module.css')
+            writeFile(cssPath, result.css, 'utf8')
+          }
+          io.stdout(`Written to ${resolved}\n`)
+        } else {
+          io.stdout(`${result.code}\n`)
+          if (result.css) {
+            io.stdout(`\n/* Loom CSS */\n${result.css}\n`)
+          }
+          if (result.warnings && result.warnings.length > 0) {
+            for (const w of result.warnings) {
+              io.stderr(`${formatDiagnostic(w)}\n`)
+            }
           }
         }
-      }
-    } else if (command === 'format') {
-      const formatted = formatLoom(source)
-      if (outputPath) {
-        const resolved = resolve(process.cwd(), outputPath)
-        writeFileSync(resolved, formatted, 'utf8')
-        io.stdout(`Written to ${resolved}\n`)
-      } else {
-        io.stdout(formatted)
-      }
-    } else if (command === 'check') {
-      const { diagnostics } = analyze(source)
-
-      if (jsonMode) {
-        io.stdout(JSON.stringify({ diagnostics: diagnostics.map(serializeDiagnostic) }) + '\n')
-        if (diagnostics.some((d) => d.severity === 'error')) {
-          if (io.exit) io.exit(1)
-          return 1
+      } else if (command === 'format') {
+        const formatted = formatLoom(source)
+        if (outputPath) {
+          const resolved = resolve(process.cwd(), outputPath)
+          writeFile(resolved, formatted, 'utf8')
+          io.stdout(`Written to ${resolved}\n`)
+        } else {
+          io.stdout(formatted)
         }
-      } else {
-        if (diagnostics.length > 0) {
-          diagnostics.forEach((d) => io.stderr(`${formatDiagnostic(d)}\n`))
+      } else if (command === 'check') {
+        const { diagnostics } = analyze(source)
+
+        if (jsonMode) {
+          io.stdout(JSON.stringify({ diagnostics: diagnostics.map(serializeDiagnostic) }) + '\n')
           if (diagnostics.some((d) => d.severity === 'error')) {
-            if (io.exit) io.exit(1)
             return 1
           }
         } else {
-          io.stdout('OK\n')
+          if (diagnostics.length > 0) {
+            diagnostics.forEach((d) => io.stderr(`${formatDiagnostic(d)}\n`))
+            if (diagnostics.some((d) => d.severity === 'error')) {
+              return 1
+            }
+          } else {
+            io.stdout('OK\n')
+          }
         }
-      }
-    } else {
-      return fail(`Unknown command: ${command}`)
-    }
-  } catch (error: any) {
-    if (error instanceof CompileError) {
-      if (jsonMode) {
-        io.stderr(
-          JSON.stringify({ diagnostics: error.diagnostics.map(serializeDiagnostic) }) + '\n',
-        )
       } else {
-        error.diagnostics.forEach((d) => io.stderr(`${formatDiagnostic(d)}\n`))
+        return fail(`Unknown command: ${command}`)
       }
-      return 1
+    } catch (error: any) {
+      if (error instanceof CompileError) {
+        if (jsonMode) {
+          io.stderr(
+            JSON.stringify({ diagnostics: error.diagnostics.map(serializeDiagnostic) }) + '\n',
+          )
+        } else {
+          error.diagnostics.forEach((d) => io.stderr(`${formatDiagnostic(d)}\n`))
+        }
+        return 1
+      }
+      return fail(error instanceof Error ? error.message : String(error))
     }
-    return fail(error instanceof Error ? error.message : String(error))
+    return 0
   }
 
-  return 0
+  if (watchMode && options.watchFile) {
+    io.stderr(`Watching ${filePath}\n`)
+    execute()
+    options.watchFile(filePath, () => {
+      io.stderr(`File changed, recompiling...\n`)
+      execute()
+    })
+    return 0
+  }
+
+  const result = execute()
+  if (result !== 0) {
+    const exit = options.exit ?? io.exit
+    if (exit) exit(result)
+  }
+  return result
+}
+
+function sanitizeComponentName(name: string): string {
+  // Ensure valid JS identifier
+  let sanitized = name.replace(/[^a-zA-Z0-9_$]/g, '_')
+  if (/^[0-9]/.test(sanitized)) {
+    sanitized = 'Component' + sanitized
+  }
+  return sanitized
 }
 
 function serializeDiagnostic(d: CompilerDiagnostic) {
@@ -145,7 +188,7 @@ function readFlag(argv: string[], flag: string) {
   return argv[index + 1] ?? null
 }
 
-function defaultIo() {
+function defaultIo(): CliIo {
   return {
     stdout: (value: string) => process.stdout.write(value),
     stderr: (value: string) => process.stderr.write(value),
@@ -153,7 +196,8 @@ function defaultIo() {
   }
 }
 
-const isEntrypoint = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+const isEntrypoint =
+  process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
 if (isEntrypoint) {
   runCli(process.argv)
 }

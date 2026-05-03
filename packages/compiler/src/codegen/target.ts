@@ -25,6 +25,13 @@ export interface TargetGenerateOptions {
   sourceFile?: string
   /** Original source content, embedded in the source map's `sourcesContent`. */
   sourceContent?: string
+  /**
+   * Emit SSR-compatible output.
+   * - React: prepends `'use server'` directive; avoids client-only hook imports.
+   * - Vue: omits CSS Modules injection (SSR cannot inject style tags).
+   * - Svelte: wraps module context in `<script context="module">` for SvelteKit.
+   */
+  ssr?: boolean
 }
 
 export interface CodegenTarget {

@@ -1,3 +1,4 @@
+import ts from 'typescript'
 import type {
   LoomFile,
   PropDecl,
@@ -16,13 +17,13 @@ import type {
 } from '../ast.js'
 import type { CodegenTarget, CompileResult, TargetGenerateOptions } from './target.js'
 import type { CompilerDiagnostic } from '../validate.js'
-import { collectComponentCSS, scopeKeyForElement } from './css.js'
+import { collectComponentCSS, scopeKeyForElement, type DynamicStyleBinding } from './css.js'
 import { warnMissingLoopKey } from './warnings.js'
 import { buildSourceMap, type Mapping } from '../sourcemap.js'
 
 export class VueTarget implements CodegenTarget {
   generate(file: LoomFile, componentName: string, options: TargetGenerateOptions = {}): CompileResult {
-    const ctx = new VueGenContext(componentName)
+    const ctx = new VueGenContext(componentName, options)
     const code = ctx.generateComponent(file)
     const map = options.sourceFile
       ? buildSourceMap(options.sourceFile, options.sourceContent ?? '', ctx.mappings)
@@ -34,18 +35,23 @@ export class VueTarget implements CodegenTarget {
 class VueGenContext {
   private styleBlocks: Array<{ scopeKey: string; block: StyleBlock }> = []
   private classMap: Map<string, string> = new Map()
+  private dynamicStyleMap: Map<string, DynamicStyleBinding[]> = new Map()
   cssText = ''
   readonly warnings: CompilerDiagnostic[] = []
   readonly mappings: Mapping[] = []
   private outputLine = 0
 
-  constructor(private componentName: string) {}
+  constructor(private componentName: string, private options: TargetGenerateOptions = {}) {}
 
   generateComponent(file: LoomFile): string {
     if (file.markup) this.collectStyles(file.markup)
-    const { cssText, classMap } = collectComponentCSS(this.componentName, this.styleBlocks)
+    const { cssText, classMap, dynamicStyleMap } = collectComponentCSS(
+      this.componentName,
+      this.styleBlocks,
+    )
     this.cssText = cssText
     this.classMap = classMap
+    this.dynamicStyleMap = dynamicStyleMap
 
     const parts: string[] = []
 
@@ -56,6 +62,17 @@ class VueGenContext {
 
     // <script setup>
     push('<script setup lang="ts">')
+    const vueImports = new Set<string>()
+
+    if (file.state && file.state.length > 0) vueImports.add('ref')
+    if (file.computed && file.computed.length > 0) vueImports.add('computed')
+    if (file.onMount && file.onMount.length > 0) vueImports.add('onMounted')
+    if (file.onUpdate && file.onUpdate.length > 0) vueImports.add('onUpdated')
+    if (file.onUnmount && file.onUnmount.length > 0) vueImports.add('onUnmounted')
+
+    if (vueImports.size > 0) {
+      push(`import { ${[...vueImports].sort().join(', ')} } from 'vue'`)
+    }
 
     if (file.generics) {
       push(`// Generic: ${file.generics}`)
@@ -63,6 +80,46 @@ class VueGenContext {
 
     if (file.props && file.props.length > 0) {
       push(buildVueProps(file.props, file.generics))
+    }
+
+    // Reactivity: State
+    if (file.state && file.state.length > 0) {
+      for (const s of file.state) {
+        const type = s.type !== 'any' ? `<${s.type}>` : ''
+        const def = s.defaultValue !== undefined ? s.defaultValue : ''
+        push(`const ${s.name} = ref${type}(${def})`)
+      }
+    }
+
+    // Reactivity: Computed
+    if (file.computed && file.computed.length > 0) {
+      for (const c of file.computed) {
+        const transformed = transformVueLogic(c.expr, file)
+        push(`const ${c.name} = computed(() => ${transformed})`)
+      }
+    }
+
+    // Reactivity: Lifecycles
+    if (file.onMount && file.onMount.length > 0) {
+      push('onMounted(() => {')
+      for (const s of file.onMount) {
+        push(`  ${transformVueLogic(s.src, file)}`)
+      }
+      push('})')
+    }
+    if (file.onUpdate && file.onUpdate.length > 0) {
+      push('onUpdated(() => {')
+      for (const s of file.onUpdate) {
+        push(`  ${transformVueLogic(s.src, file)}`)
+      }
+      push('})')
+    }
+    if (file.onUnmount && file.onUnmount.length > 0) {
+      push('onUnmounted(() => {')
+      for (const s of file.onUnmount) {
+        push(`  ${transformVueLogic(s.src, file)}`)
+      }
+      push('})')
     }
 
     if (file.logic) {
@@ -86,16 +143,16 @@ class VueGenContext {
       if (filtered.length > 1) {
         // Vue 3 supports multiple root nodes natively
         for (const node of filtered) {
-          push(...this.renderNode(node, '  '))
+          push(...this.renderNode(node, '  ', file))
         }
       } else if (filtered.length === 1) {
-        push(...this.renderNode(filtered[0], '  '))
+        push(...this.renderNode(filtered[0], '  ', file))
       }
     }
     push('</template>', '')
 
-    // <style module>
-    if (this.cssText.trim()) {
+    // <style module> — omitted in SSR mode (server cannot inject styles)
+    if (this.cssText.trim() && !this.options.ssr) {
       push('<style module>')
       push(this.cssText)
       push('</style>')
@@ -132,8 +189,8 @@ class VueGenContext {
     }
   }
 
-  private renderNode(node: MarkupNode, indent: string): string[] {
-    const lines = this.renderNodeInner(node, indent)
+  private renderNode(node: MarkupNode, indent: string, file: LoomFile, locals: Set<string> = new Set()): string[] {
+    const lines = this.renderNodeInner(node, indent, file, locals)
     if (lines.length > 0 && node.span) {
       this.mappings.push({
         genLine: this.outputLine,
@@ -146,12 +203,12 @@ class VueGenContext {
     return lines
   }
 
-  private renderNodeInner(node: MarkupNode, indent: string): string[] {
+  private renderNodeInner(node: MarkupNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     switch (node.kind) {
-      case 'element': return this.renderElement(node, indent)
-      case 'text': return this.renderText(node, indent)
-      case 'if': return this.renderIf(node, indent)
-      case 'each': return this.renderEach(node, indent)
+      case 'element': return this.renderElement(node, indent, file, locals)
+      case 'text': return this.renderText(node, indent, file, locals)
+      case 'if': return this.renderIf(node, indent, file, locals)
+      case 'each': return this.renderEach(node, indent, file, locals)
       case 'slot-def': return this.renderSlotDef(node, indent)
       case 'slot-use': return []
       case 'comment': return [`${indent}<!-- ${node.value} -->`]
@@ -159,7 +216,7 @@ class VueGenContext {
     }
   }
 
-  private renderElement(node: ElementNode, indent: string): string[] {
+  private renderElement(node: ElementNode, indent: string, file: LoomFile, locals: Set<string>, extraAttrs: string[] = []): string[] {
     const scopeKey = scopeKeyForElement(node)
 
     let tag = node.tag
@@ -170,7 +227,7 @@ class VueGenContext {
       tag = 'component'
     }
 
-    const attrs: string[] = []
+    const attrs: string[] = [...extraAttrs]
 
     // :is for polymorphic
     if (tag === 'component' && asAttr?.kind === 'as') {
@@ -181,20 +238,29 @@ class VueGenContext {
     const classAttr = this.buildClassAttr(node, scopeKey)
     if (classAttr) attrs.push(classAttr)
 
+    const styleAttr = this.buildStyleAttr(scopeKey)
+    if (styleAttr) attrs.push(styleAttr)
+
     if (node.id) attrs.push(`id="${node.id}"`)
 
     // Data attributes
     if (node.data) {
       for (const attr of node.data) {
         if (attr.kind === 'as') continue
-        attrs.push(renderVueDataAttr(attr))
+        if (
+          (attr.kind === 'static' || attr.kind === 'dynamic' || attr.kind === 'bind') &&
+          'name' in attr &&
+          (attr.name === 'class' || attr.name === 'id' || attr.name === 'key')
+        )
+          continue
+        attrs.push(renderVueDataAttr(attr, file, locals))
       }
     }
 
     // Behaviors
     if (node.behaviors) {
       for (const beh of node.behaviors) {
-        attrs.push(renderVueBehavior(beh))
+        attrs.push(this.renderVueBehavior(beh, file, locals))
       }
     }
 
@@ -215,19 +281,27 @@ class VueGenContext {
     } else {
       lines.push(`${indent}<${tag}${attrsStr}>`)
 
-      // Named slots as <template #name>
+      // Named slots as <template #name> or <template #name="{ params }"> for scoped slots
       for (const slot of slotChildren) {
         if (slot.name) {
-          lines.push(`${indent}  <template #${slot.name}>`)
+          const scopeSuffix =
+            slot.slotParams && slot.slotParams.length > 0
+              ? `="{ ${slot.slotParams.join(', ')} }"`
+              : ''
+          const slotLocals = new Set(locals)
+          if (slot.slotParams) {
+            for (const p of slot.slotParams) slotLocals.add(p)
+          }
+          lines.push(`${indent}  <template #${slot.name}${scopeSuffix}>`)
           for (const child of slot.children) {
-            lines.push(...this.renderNode(child, indent + '    '))
+            lines.push(...this.renderNode(child, indent + '    ', file, slotLocals))
           }
           lines.push(`${indent}  </template>`)
         }
       }
 
       for (const child of filteredChildren) {
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file, locals))
       }
 
       lines.push(`${indent}</${tag}>`)
@@ -256,81 +330,85 @@ class VueGenContext {
     return `:class="[${parts.join(', ')}]"`
   }
 
-  private renderText(node: TextNode, indent: string): string[] {
+  private buildStyleAttr(scopeKey: string): string {
+    const bindings = this.dynamicStyleMap.get(scopeKey)
+    if (!bindings || bindings.length === 0) return ''
+
+    const objectEntries = bindings.map((binding) => `'${binding.cssVar}': ${binding.expr}`)
+    return `:style="{ ${objectEntries.join(', ')} }"`
+  }
+
+  private renderText(node: TextNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     if (/<[a-z][\s\S]*?>/i.test(node.value)) {
-      return [`${indent}<span v-html="${escapeAttr(node.value)}" />`]
+      return [`${indent}<span v-html="'${escapeAttr(node.value)}'" />`]
     }
-    const interpolated = node.value.replace(/\{([^}]+)\}/g, (_m, expr) => `{{ ${expr} }}`)
+    const interpolated = node.value.replace(/\{([^}]+)\}/g, (_m, expr) => `{{ ${transformVueLogic(expr, file, locals)} }}`)
     return [`${indent}${interpolated}`]
   }
 
-  private renderIf(node: IfNode | ElseIfNode, indent: string): string[] {
+  private renderIf(node: IfNode | ElseIfNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     const lines: string[] = []
     const directive = node.kind === 'if' ? 'v-if' : 'v-else-if'
+    const condition = transformVueLogic(node.condition, file, locals)
 
     if (node.consequent.length === 1) {
       // Attach directive directly to element if single child
       const child = node.consequent[0]
       if (child.kind === 'element') {
-        const childLines = this.renderElement(child, indent)
-        // Inject directive into first opening tag
-        const first = childLines[0].replace('<' + getTagName(child.tag), `<${getTagName(child.tag)} ${directive}="${node.condition}"`)
-        lines.push(first, ...childLines.slice(1))
+        lines.push(...this.renderElement(child, indent, file, locals, [`${directive}="${condition}"`]))
       } else {
-        lines.push(`${indent}<template ${directive}="${node.condition}">`)
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(`${indent}<template ${directive}="${condition}">`)
+        lines.push(...this.renderNode(child, indent + '  ', file, locals))
         lines.push(`${indent}</template>`)
       }
     } else {
-      lines.push(`${indent}<template ${directive}="${node.condition}">`)
+      lines.push(`${indent}<template ${directive}="${condition}">`)
       for (const child of node.consequent) {
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file, locals))
       }
       lines.push(`${indent}</template>`)
     }
 
     if (node.alternate) {
       if (node.alternate.kind === 'elseif') {
-        lines.push(...this.renderIf(node.alternate, indent))
+        lines.push(...this.renderIf(node.alternate, indent, file, locals))
       } else if (node.alternate.kind === 'else') {
-        lines.push(...this.renderElse(node.alternate, indent))
+        lines.push(...this.renderElse(node.alternate, indent, file, locals))
       }
     }
 
     return lines
   }
 
-  private renderElse(node: ElseNode, indent: string): string[] {
+  private renderElse(node: ElseNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     const lines: string[] = []
     if (node.children.length === 1) {
       const child = node.children[0]
       if (child.kind === 'element') {
-        const childLines = this.renderElement(child, indent)
-        const first = childLines[0].replace('<' + getTagName(child.tag), `<${getTagName(child.tag)} v-else`)
-        lines.push(first, ...childLines.slice(1))
+        lines.push(...this.renderElement(child, indent, file, locals, ['v-else']))
       } else {
         lines.push(`${indent}<template v-else>`)
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file, locals))
         lines.push(`${indent}</template>`)
       }
     } else {
       lines.push(`${indent}<template v-else>`)
       for (const child of node.children) {
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file, locals))
       }
       lines.push(`${indent}</template>`)
     }
     return lines
   }
 
-  private renderEach(node: EachNode, indent: string): string[] {
+  private renderEach(node: EachNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     const lines: string[] = []
 
     // Extract key from first child
     let keyExpr = ''
     if (node.children[0]?.kind === 'element') {
       const keyAttr = node.children[0].data?.find(d => d.kind === 'dynamic' && d.name === 'key')
-      if (keyAttr?.kind === 'dynamic') keyExpr = keyAttr.expr
+      if (keyAttr?.kind === 'dynamic') keyExpr = transformVueLogic(keyAttr.expr, file, locals)
     }
 
     if (!keyExpr) {
@@ -338,21 +416,20 @@ class VueGenContext {
     }
 
     const indexPart = node.index ? `, ${node.index}` : ''
-    const vFor = `v-for="(${node.item}${indexPart}) in ${node.list}"`
-    const vKey = keyExpr ? ` :key="${keyExpr}"` : ''
+    const list = transformVueLogic(node.list, file, locals)
+    const extraAttrs = [`v-for="(${node.item}${indexPart}) in ${list}"`]
+    if (keyExpr) extraAttrs.push(`:key="${keyExpr}"`)
+
+    const nextLocals = new Set(locals)
+    nextLocals.add(node.item)
+    if (node.index) nextLocals.add(node.index)
 
     if (node.children.length === 1 && node.children[0].kind === 'element') {
-      const child = node.children[0] as ElementNode
-      const childLines = this.renderElement(child, indent)
-      const first = childLines[0].replace(
-        '<' + getTagName(child.tag),
-        `<${getTagName(child.tag)} ${vFor}${vKey}`,
-      )
-      lines.push(first, ...childLines.slice(1))
+      lines.push(...this.renderElement(node.children[0] as ElementNode, indent, file, nextLocals, extraAttrs))
     } else {
-      lines.push(`${indent}<template ${vFor}${vKey}>`)
+      lines.push(`${indent}<template ${extraAttrs.join(' ')}>`)
       for (const child of node.children) {
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file, nextLocals))
       }
       lines.push(`${indent}</template>`)
     }
@@ -361,12 +438,102 @@ class VueGenContext {
   }
 
   private renderSlotDef(node: SlotDefNode, indent: string): string[] {
-    if (node.name) return [`${indent}<slot name="${node.name}" />`]
+    if (node.name) {
+      if (node.params && node.params.length > 0) {
+        // Scoped slot: expose params as slot props
+        const slotAttrs = node.params.map((p) => `:${p}="${p}"`).join(' ')
+        return [`${indent}<slot name="${node.name}" ${slotAttrs} />`]
+      }
+      return [`${indent}<slot name="${node.name}" />`]
+    }
     return [`${indent}<slot />`]
+  }
+
+  private renderVueBehavior(beh: BehaviorBlock, file: LoomFile, locals: Set<string>): string {
+    const modifierStr = beh.modifiers.length > 0 ? '.' + beh.modifiers.join('.') : ''
+    const event =
+      beh.event.startsWith('on') && beh.event.length > 2
+        ? beh.event.slice(2, 3).toLowerCase() + beh.event.slice(3) // onClick → click (but already stripped @)
+        : beh.event
+
+    const fullBody = beh.body.map((s) => s.src).join('\n')
+    const transformed = transformVueLogic(fullBody, file, locals)
+    const bodyLines = transformed.split('\n').filter((l) => l.trim())
+    const handler =
+      bodyLines.length === 1
+        ? `"${bodyLines[0].trim()}"`
+        : `"() => { ${bodyLines.map((l) => l.trim()).join('; ')} }"`
+
+    return `@${event}${modifierStr}=${handler}`
   }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function transformVueLogic(src: string, file: LoomFile, additionalLocals: Set<string> = new Set()): string {
+  const stateNames = new Set(file.state?.map((s) => s.name) ?? [])
+  if (stateNames.size === 0) return src
+
+  const sourceFile = ts.createSourceFile('logic.ts', src, ts.ScriptTarget.Latest, true)
+  const replacements: Array<{ start: number; end: number; text: string }> = []
+  const scopeStack: Array<Set<string>> = [new Set(additionalLocals)]
+
+  const isShadowed = (name: string) => {
+    for (let i = scopeStack.length - 1; i >= 0; i--) {
+      if (scopeStack[i].has(name)) return true
+    }
+    return false
+  }
+
+  const visit = (node: ts.Node) => {
+    let pushedScope = false
+    if (ts.isBlock(node) || ts.isSourceFile(node) || ts.isFunctionDeclaration(node) || ts.isArrowFunction(node)) {
+      scopeStack.push(new Set())
+      pushedScope = true
+    }
+
+    // Track declarations
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+      scopeStack[scopeStack.length - 1].add(node.name.text)
+    } else if (ts.isFunctionDeclaration(node) && node.name) {
+      scopeStack[scopeStack.length - 1].add(node.name.text)
+    } else if (ts.isParameter(node) && ts.isIdentifier(node.name)) {
+      scopeStack[scopeStack.length - 1].add(node.name.text)
+    }
+
+    if (ts.isIdentifier(node) && stateNames.has(node.text) && !isShadowed(node.text)) {
+      // Ensure it's not a property name in a member access, e.g. obj.count
+      const parent = node.parent
+      if (parent) {
+        if (ts.isPropertyAccessExpression(parent) && parent.name === node) {
+          // It's the property name, don't transform
+        } else if (ts.isBindingElement(parent) && parent.name === node) {
+          // It's a binding name, don't transform
+        } else if (ts.isPropertyAssignment(parent) && parent.name === node) {
+          // It's a property assignment key, don't transform
+        } else {
+          replacements.push({ start: node.getStart(sourceFile), end: node.getEnd(), text: `${node.text}.value` })
+        }
+      } else {
+        replacements.push({ start: node.getStart(sourceFile), end: node.getEnd(), text: `${node.text}.value` })
+      }
+    }
+    ts.forEachChild(node, visit)
+    if (pushedScope) scopeStack.pop()
+  }
+
+  visit(sourceFile)
+
+  // Sort backwards to avoid offset issues
+  replacements.sort((a, b) => b.start - a.start)
+
+  let out = src
+  for (const r of replacements) {
+    out = out.slice(0, r.start) + r.text + out.slice(r.end)
+  }
+
+  return out
+}
 
 function buildVueProps(props: PropDecl[], generics?: string): string {
   const typeFields = props.map(p => `  ${p.name}${p.defaultValue !== undefined ? '?' : ''}: ${p.type}`).join('\n')
@@ -382,32 +549,25 @@ function buildVueProps(props: PropDecl[], generics?: string): string {
   return lines.join('\n')
 }
 
-function renderVueDataAttr(attr: DataAttr): string {
+function renderVueDataAttr(attr: DataAttr, file: LoomFile, locals: Set<string>): string {
   switch (attr.kind) {
     case 'static':
       if (attr.value === '') return attr.name
       return `${attr.name}="${attr.value}"`
     case 'dynamic':
-      return `:${attr.name}="${attr.expr}"`
+      return `:${attr.name}="${transformVueLogic(attr.expr, file, locals)}"`
     case 'spread':
-      return `v-bind="${attr.expr}"`
+      return `v-bind="${transformVueLogic(attr.expr, file, locals)}"`
     case 'as':
       return ''
+    case 'bind': {
+      const expr = transformVueLogic(attr.expr, file, locals)
+      // Use v-model:name for named binding; v-model for "value" (common convention)
+      return attr.name === 'value' || attr.name === 'modelValue'
+        ? `v-model="${expr}"`
+        : `v-model:${attr.name}="${expr}"`
+    }
   }
-}
-
-function renderVueBehavior(beh: BehaviorBlock): string {
-  const modifierStr = beh.modifiers.length > 0 ? '.' + beh.modifiers.join('.') : ''
-  const event = beh.event.startsWith('on') && beh.event.length > 2
-    ? beh.event.slice(2, 3).toLowerCase() + beh.event.slice(3) // onClick → click (but already stripped @)
-    : beh.event
-
-  const bodyLines = beh.body.split('\n').filter(l => l.trim())
-  const handler = bodyLines.length === 1
-    ? `"${bodyLines[0].trim()}"`
-    : `"() => { ${bodyLines.map(l => l.trim()).join('; ')} }"`
-
-  return `@${event}${modifierStr}=${handler}`
 }
 
 function escapeAttr(str: string): string {

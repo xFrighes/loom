@@ -213,7 +213,7 @@ describe('Svelte codegen', () => {
 
   it('renders on:click|preventDefault', () => {
     const out = svelte('- pug\nbutton\n  @click.prevent\n    submit()')
-    expect(out).toContain('on:click|prevent=')
+    expect(out).toContain('on:click|preventDefault=')
   })
 
   it('renders {#if} blocks', () => {
@@ -280,5 +280,177 @@ describe('CSS extraction', () => {
     const first = compile(src, { componentName: 'Test', target: 'react' }).css
     const second = compile(src, { componentName: 'Test', target: 'react' }).css
     expect(first).toBe(second)
+  })
+})
+
+// ─── bind: two-way binding ────────────────────────────────────────────────────
+
+describe('bind: two-way binding', () => {
+  it('renders bind:value as value+onChange in React for state vars', () => {
+    const src = [
+      '- state',
+      '  query: string = ""',
+      '',
+      '- pug',
+      'input',
+      '  :',
+      '    bind:value query',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Test', target: 'react' }).code
+    expect(out).toContain('value={query}')
+    expect(out).toContain('onChange=')
+    expect(out).toContain('setQuery')
+  })
+
+  it('renders bind:value as v-model in Vue', () => {
+    const src = [
+      '- pug',
+      'input',
+      '  :',
+      '    bind:value query',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Test', target: 'vue' }).code
+    expect(out).toContain('v-model="query"')
+  })
+
+  it('renders bind:checked as v-model:checked in Vue', () => {
+    const src = [
+      '- pug',
+      'input',
+      '  :',
+      '    bind:checked isActive',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Test', target: 'vue' }).code
+    expect(out).toContain('v-model:checked="isActive"')
+  })
+
+  it('renders bind:value as bind:value={expr} in Svelte', () => {
+    const src = [
+      '- pug',
+      'input',
+      '  :',
+      '    bind:value query',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Test', target: 'svelte' }).code
+    expect(out).toContain('bind:value={query}')
+  })
+
+  it('renders bind:checked in Svelte', () => {
+    const src = [
+      '- pug',
+      'input',
+      '  :',
+      '    bind:checked isActive',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Test', target: 'svelte' }).code
+    expect(out).toContain('bind:checked={isActive}')
+  })
+})
+
+// ─── Scoped slots ─────────────────────────────────────────────────────────────
+
+describe('scoped slots', () => {
+  it('emits render prop signature for scoped slot-def in React', () => {
+    const src = [
+      '- pug',
+      'ul',
+      '  slot:row(item)',
+    ].join('\n')
+    const out = compile(src, { componentName: 'List', target: 'react' }).code
+    expect(out).toContain('row?:')
+    expect(out).toContain('item: any')
+    expect(out).toContain("props.row?.({ item })")
+  })
+
+  it('emits slot props in Vue for scoped slot-def', () => {
+    const src = [
+      '- pug',
+      'ul',
+      '  slot:row(item)',
+    ].join('\n')
+    const out = compile(src, { componentName: 'List', target: 'vue' }).code
+    expect(out).toContain('<slot name="row" :item="item" />')
+  })
+
+  it('emits slot shorthand in Svelte for scoped slot-def', () => {
+    const src = [
+      '- pug',
+      'ul',
+      '  slot:row(item)',
+    ].join('\n')
+    const out = compile(src, { componentName: 'List', target: 'svelte' }).code
+    expect(out).toContain('<slot name="row" {item} />')
+  })
+
+  it('emits scoped template in Vue for slot-use with params', () => {
+    const src = [
+      '- pug',
+      'List',
+      '  slot:row(item)',
+      '    li {item}',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Page', target: 'vue' }).code
+    expect(out).toContain('#row="{ item }"')
+  })
+
+  it('emits let: directives in Svelte for slot-use with params', () => {
+    const src = [
+      '- pug',
+      'List',
+      '  slot:row(item)',
+      '    li {item}',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Page', target: 'svelte' }).code
+    expect(out).toContain('let:item')
+  })
+
+  it('emits render prop function in React for slot-use with params', () => {
+    const src = [
+      '- pug',
+      'List',
+      '  slot:row(item)',
+      '    li {item}',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Page', target: 'react' }).code
+    expect(out).toContain('({ item }) =>')
+  })
+})
+
+// ─── SSR mode ─────────────────────────────────────────────────────────────────
+
+describe('SSR mode', () => {
+  it('prepends use server directive in React', () => {
+    const src = '- pug\ndiv Hello'
+    const out = compile(src, { componentName: 'Test', target: 'react', ssr: true }).code
+    expect(out.trimStart().startsWith("'use server'")).toBe(true)
+  })
+
+  it('omits client hooks in React SSR output', () => {
+    const src = [
+      '- state',
+      '  count: number = 0',
+      '',
+      '- pug',
+      'div {count}',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Test', target: 'react', ssr: true }).code
+    expect(out).not.toContain('useState')
+  })
+
+  it('omits style module block in Vue SSR output', () => {
+    const src = [
+      '- pug',
+      'div',
+      '  ::',
+      '    color red',
+    ].join('\n')
+    const out = compile(src, { componentName: 'Test', target: 'vue', ssr: true }).code
+    expect(out).not.toContain('<style module>')
+  })
+
+  it('emits module context block in Svelte SSR output', () => {
+    const src = '- pug\ndiv Hello'
+    const out = compile(src, { componentName: 'Test', target: 'svelte', ssr: true }).code
+    expect(out).toContain('<script context="module"')
   })
 })

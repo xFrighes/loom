@@ -1,4 +1,4 @@
-export { formatLoom } from './formatter.js'
+export { formatLoom, printLoom } from './printer.js'
 export { getFoldRanges } from './folds.js'
 export type { FoldRange } from './folds.js'
 export { parse, ParseError } from './parser.js'
@@ -6,6 +6,8 @@ export { tokenize } from './lexer.js'
 export type { LexerResult, Token } from './lexer.js'
 export type { TK } from './lexer.js'
 export type * from './ast.js'
+export { extractLoomStructure } from './blocks.js'
+export type { LoomStructure, LoomTopLevelBlock, LoomTopLevelBlockKind, LoomMarkupNodeRef } from './blocks.js'
 export type { CompileResult, CodegenTarget, TargetGenerateOptions } from './codegen/target.js'
 export { warnReactBehavior, warnMissingLoopKey } from './codegen/warnings.js'
 export { formatDiagnostic, hasErrors, validate } from './validate.js'
@@ -18,7 +20,7 @@ import { SvelteTarget } from './codegen/svelte.js'
 import type { CompileResult } from './codegen/target.js'
 import type { LoomFile } from './ast.js'
 import { hasErrors, validate, type CompilerDiagnostic } from './validate.js'
-
+import { formatLoom } from './printer.js'
 export type CompileOptions = {
   /** Name of the component (used for CSS class hashing and function name) */
   componentName: string
@@ -31,6 +33,11 @@ export type CompileOptions = {
    * source map in the result.
    */
   sourceFile?: string
+  /**
+   * Emit SSR-compatible output (React `'use server'`, Vue no style injection,
+   * Svelte `<script context="module">`).
+   */
+  ssr?: boolean
 }
 
 export type AnalyzeResult = {
@@ -81,6 +88,7 @@ export function compile(src: string, options: CompileOptions): CompileResult {
     cssImportPath: options.cssImportPath,
     sourceFile: options.sourceFile,
     sourceContent: src,
+    ssr: options.ssr,
   }
 
   switch (options.target) {

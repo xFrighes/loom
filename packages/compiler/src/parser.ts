@@ -1,8 +1,12 @@
 import { tokenize, TK, type Token } from './lexer.js'
-import { findTopLevelEquals, findTopLevelWhitespace, unwrapBalancedBraces } from './expr.js'
+import { findTopLevelEquals, findTopLevelWhitespace, findTopLevelColon, unwrapBalancedBraces } from './expr.js'
+import { tryRustParse } from './rust-parser.js'
 import type {
   LoomFile,
   PropDecl,
+  StateDecl,
+  ComputedDecl,
+  LogicStatement,
   MarkupNode,
   ElementNode,
   DataAttr,
@@ -43,6 +47,8 @@ export class ParseError extends Error {
 class TokenStream {
   private pos = 0
   constructor(private tokens: Token[]) {}
+
+  get currentPos() { return this.pos }
 
   peek(offset = 0): Token {
     return this.tokens[Math.min(this.pos + offset, this.tokens.length - 1)]
@@ -95,6 +101,11 @@ function spanFromNodes(nodes: Array<{ span?: SourceSpan }>): SourceSpan | undefi
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export function parse(src: string): LoomFile {
+  const rustResult = tryRustParse(src)
+  if (rustResult) {
+    return rustResult as LoomFile
+  }
+
   const { tokens, errors } = tokenize(src)
   if (errors.length > 0) {
     const error = errors[0]
@@ -113,36 +124,37 @@ export function parse(src: string): LoomFile {
 function parseFile(s: TokenStream): LoomFile {
   const file: LoomFile = {}
   const rawZones: Map<string, Token[]> = new Map()
+  const markupParts: MarkupNode[][] = []
 
   while (!s.is(TK.EOF)) {
     s.skipNewlines()
     if (s.is(TK.EOF)) break
 
+    const lastPos = s.currentPos
     if (s.is(TK.CONTEXT_SWITCH)) {
       const switchTok = s.consume()
       const zoneName = switchTok.value
 
       if (zoneName === 'pug') {
-        s.skipNewlines()
-        file.markup = parseMarkupChildren(s, 0)
+        markupParts.push(parseMarkupChildren(s, 0))
       } else {
         const lines: Token[] = []
         while (!s.is(TK.EOF) && !s.is(TK.CONTEXT_SWITCH)) {
-          if (s.is(TK.RAW_LINE)) {
-            lines.push(s.consume())
-          } else if (s.is(TK.NEWLINE)) {
-            lines.push(s.consume())
-          } else {
-            lines.push(s.consume())
-          }
+          lines.push(s.consume())
         }
         rawZones.set(zoneName, lines)
       }
     } else {
-      file.markup = parseMarkupChildren(s, 0)
-      break
+      markupParts.push(parseMarkupChildren(s, 0))
+    }
+    
+    if (s.currentPos === lastPos) {
+      // Safety break to prevent infinite loop
+      s.consume()
     }
   }
+
+  file.markup = markupParts.flat()
 
   if (rawZones.has('generics')) {
     const genericsTokens = rawZones.get('generics')!
@@ -154,12 +166,33 @@ function parseFile(s: TokenStream): LoomFile {
     file.props = parsePropsZone(rawZones.get('props')!)
   }
 
+  if (rawZones.has('state')) {
+    file.state = parseStateZone(rawZones.get('state')!)
+  }
+
+  if (rawZones.has('computed')) {
+    file.computed = parseComputedZone(rawZones.get('computed')!)
+  }
+
+  if (rawZones.has('onMount')) {
+    file.onMount = parseLogicStatements(rawZones.get('onMount')!)
+  }
+
+  if (rawZones.has('onUpdate')) {
+    file.onUpdate = parseLogicStatements(rawZones.get('onUpdate')!)
+  }
+
+  if (rawZones.has('onUnmount')) {
+    file.onUnmount = parseLogicStatements(rawZones.get('onUnmount')!)
+  }
+
   if (rawZones.has('ts')) {
     const tokens = trimTrailingBlankTokens(rawZones.get('ts')!)
     file.logic = {
       lang: 'ts',
       src: joinRawZone(tokens),
       span: mergeSpans(...tokens.map((token) => token.span)),
+      statements: parseLogicStatements(tokens),
     }
   } else if (rawZones.has('js')) {
     const tokens = trimTrailingBlankTokens(rawZones.get('js')!)
@@ -167,10 +200,18 @@ function parseFile(s: TokenStream): LoomFile {
       lang: 'js',
       src: joinRawZone(tokens),
       span: mergeSpans(...tokens.map((token) => token.span)),
+      statements: parseLogicStatements(tokens),
     }
   }
 
-  file.span = mergeSpans(file.span, spanFromNodes(file.props ?? []), file.logic?.span, spanFromNodes(file.markup ?? []))
+  file.span = mergeSpans(
+    file.span,
+    spanFromNodes(file.props ?? []),
+    spanFromNodes(file.state ?? []),
+    spanFromNodes(file.computed ?? []),
+    file.logic?.span,
+    spanFromNodes(file.markup ?? []),
+  )
 
   return file
 }
@@ -204,9 +245,8 @@ function parsePropsZone(lines: Token[]): PropDecl[] {
       typePart = trimmed
     }
 
-    const colonIdx = typePart.indexOf(':')
+    const colonIdx = findTopLevelColon(typePart)
     if (colonIdx === -1) {
-      // prop without explicit type
       props.push({ span: line.span, name: typePart.trim(), type: 'any', defaultValue })
     } else {
       const name = typePart.slice(0, colonIdx).trim()
@@ -217,13 +257,95 @@ function parsePropsZone(lines: Token[]): PropDecl[] {
   return props
 }
 
+function parseStateZone(lines: Token[]): StateDecl[] {
+  const state: StateDecl[] = []
+  for (const line of lines) {
+    const trimmed = line.value.trim()
+    if (!trimmed || trimmed.startsWith('//')) continue
+
+    const eqIdx = findTopLevelEquals(trimmed)
+    let typePart: string
+    let defaultValue: string | undefined
+
+    if (eqIdx !== -1) {
+      typePart = trimmed.slice(0, eqIdx).trim()
+      defaultValue = trimmed.slice(eqIdx + 1).trim()
+    } else {
+      typePart = trimmed
+    }
+
+    const colonIdx = findTopLevelColon(typePart)
+    if (colonIdx === -1) {
+      state.push({ span: line.span, name: typePart.trim(), type: 'any', defaultValue })
+    } else {
+      const name = typePart.slice(0, colonIdx).trim()
+      const type = typePart.slice(colonIdx + 1).trim()
+      state.push({ span: line.span, name, type, defaultValue })
+    }
+  }
+  return state
+}
+
+function parseComputedZone(lines: Token[]): ComputedDecl[] {
+  const computed: ComputedDecl[] = []
+  for (const line of lines) {
+    const trimmed = line.value.trim()
+    if (!trimmed || trimmed.startsWith('//')) continue
+
+    const eqIdx = findTopLevelEquals(trimmed)
+    const colonIdx = findTopLevelColon(trimmed)
+    const splitIdx = eqIdx !== -1 ? eqIdx : colonIdx
+
+    if (splitIdx === -1) continue
+
+    const name = trimmed.slice(0, splitIdx).trim()
+    const expr = trimmed.slice(splitIdx + 1).trim()
+    computed.push({ span: line.span, name, expr })
+  }
+  return computed
+}
+
+function parseLogicStatements(lines: Token[]): LogicStatement[] {
+  const statements: LogicStatement[] = []
+  let currentIndent = 0
+
+  for (const line of lines) {
+    if (line.type === TK.INDENT) {
+      currentIndent++
+      continue
+    }
+    if (line.type === TK.DEDENT) {
+      currentIndent = Math.max(0, currentIndent - 1)
+      continue
+    }
+
+    const trimmed = line.value.trim()
+    if (!trimmed || trimmed.startsWith('//')) continue
+
+    let kind: LogicStatement['kind'] = 'statement'
+    if (trimmed.startsWith('import ')) kind = 'import'
+    else if (trimmed.startsWith('export ')) kind = 'export'
+    else if (trimmed.startsWith('type ') || trimmed.startsWith('interface ')) kind = 'type'
+
+    const indentPrefix = '  '.repeat(currentIndent)
+
+    statements.push({
+      span: line.span,
+      kind,
+      src: indentPrefix + line.value,
+    })
+  }
+
+  return statements
+}
+
 // ─── Markup parser ────────────────────────────────────────────────────────────
 
 /**
  * Parse sibling markup nodes at `baseIndent`.
  * Returns when it encounters a token at indent < baseIndent, a DEDENT, or EOF.
  */
-function parseMarkupChildren(s: TokenStream, baseIndent: number): MarkupNode[] {
+export function parseMarkupChildren(s: TokenStream, baseIndent: number): MarkupNode[] {
   return parseMarkupChildrenWithOptions(s, baseIndent, false)
 }
 
@@ -237,12 +359,23 @@ function parseMarkupChildrenWithOptions(
   while (true) {
     s.skipNewlines()
     if (s.is(TK.EOF) || s.is(TK.CONTEXT_SWITCH)) break
-    if (s.is(TK.DEDENT)) break
-
+    
     const tok = s.peek()
 
+    if (tok.type === TK.DEDENT) {
+      break
+    }
+    
+    if (tok.type === TK.INDENT) {
+      s.consume()
+      nodes.push(...parseMarkupChildrenWithOptions(s, tok.indent, false))
+      if (s.is(TK.DEDENT)) s.consume()
+      continue
+    }
+
     // Stop if this token is at a shallower indent than our expected base
-    if (tok.indent < baseIndent) break
+    // Only applies if baseIndent > 0 (inside a block)
+    if (baseIndent > 0 && tok.indent < baseIndent) break
 
     switch (tok.type) {
       case TK.COMMENT: {
@@ -322,8 +455,8 @@ function parseElement(s: TokenStream): ElementNode {
   s.skipNewlines()
 
   if (s.is(TK.INDENT)) {
-    s.consume() // eat INDENT
-    parseDimensionsAndChildren(s, node, elemIndent)
+    const indentTok = s.consume() // eat INDENT
+    parseDimensionsAndChildren(s, node, indentTok.indent)
     if (s.is(TK.DEDENT)) s.consume()
   }
 
@@ -332,27 +465,37 @@ function parseElement(s: TokenStream): ElementNode {
   return node
 }
 
-function parseDimensionsAndChildren(s: TokenStream, node: ElementNode, _parentIndent: number) {
+function parseDimensionsAndChildren(s: TokenStream, node: ElementNode, baseIndent: number) {
   while (true) {
     s.skipNewlines()
     if (s.is(TK.EOF) || s.is(TK.DEDENT) || s.is(TK.CONTEXT_SWITCH)) break
 
     const tok = s.peek()
+    if (tok.indent < baseIndent) break
 
     if (tok.type === TK.DIMENSION_DATA) {
       s.consume() // ":"
-      node.data = parseDataDimension(s)
+      node.data = (node.data ?? []).concat(parseDataDimension(s))
     } else if (tok.type === TK.DIMENSION_STYLE) {
       s.consume() // "::"
-      node.styles = parseStyleDimension(s)
+      node.styles = (node.styles ?? []).concat(parseStyleDimension(s))
     } else if (tok.type === TK.DIMENSION_BEHAVIOR) {
       if (!node.behaviors) node.behaviors = []
       node.behaviors.push(parseBehaviorDimension(s))
     } else {
       // Child nodes
       const children = parseMarkupChildren(s, tok.indent)
-      node.children.push(...children)
-      break
+      if (children.length === 0) {
+        // If we can't parse children but we are at the right indent, we might have
+        // unhandled tokens. Skip one to avoid infinite loop.
+        if (s.peek().indent >= baseIndent) {
+           s.consume()
+        } else {
+           break
+        }
+      } else {
+        node.children.push(...children)
+      }
     }
   }
 }
@@ -432,6 +575,20 @@ function parseDataDimension(s: TokenStream): DataAttr[] {
 
     if (line.startsWith('...')) {
       attrs.push({ kind: 'spread', expr: line.slice(3), span: tok.span })
+      continue
+    }
+
+    if (line.startsWith('bind:')) {
+      const rest = line.slice(5)
+      const spaceIdx = findTopLevelWhitespace(rest)
+      if (spaceIdx !== -1) {
+        const bindName = rest.slice(0, spaceIdx)
+        const bindExpr = rest.slice(spaceIdx + 1).trim()
+        attrs.push({ kind: 'bind', name: bindName, expr: bindExpr, span: tok.span })
+      } else {
+        // bind:name without explicit expr — use name itself as expr
+        attrs.push({ kind: 'bind', name: rest, expr: rest, span: tok.span })
+      }
       continue
     }
 
@@ -537,37 +694,33 @@ function parseBehaviorDimension(s: TokenStream): BehaviorBlock {
   const event = eventPart
   const modifiers = modParts
 
-  const bodyLines: string[] = []
-  const bodySpans: SourceSpan[] = []
+  const bodyTokens: Token[] = []
   s.skipNewlines()
   if (s.is(TK.INDENT)) {
     s.consume()
-    while (!s.is(TK.DEDENT) && !s.is(TK.EOF)) {
-      if (s.is(TK.NEWLINE)) {
-        bodyLines.push('')
-        bodySpans.push(s.consume().span)
-        continue
+    let depth = 1
+    while (depth > 0 && !s.is(TK.EOF)) {
+      if (s.is(TK.INDENT)) {
+        depth++
+        bodyTokens.push(s.peek())
+      } else if (s.is(TK.DEDENT)) {
+        depth--
+        if (depth === 0) break
+        bodyTokens.push(s.peek())
+      } else {
+        bodyTokens.push(s.peek())
       }
-      const t = s.consume()
-      bodyLines.push(t.value)
-      bodySpans.push(t.span)
+      s.consume()
     }
-    if (s.is(TK.DEDENT)) s.consume()
   }
 
-  const body = trimTrailingBlankLinesArr(bodyLines).join('\n')
+  const body = parseLogicStatements(bodyTokens)
   return {
     event,
     modifiers,
     body,
-    span: mergeSpans(tok.span, ...bodySpans),
+    span: mergeSpans(tok.span, spanFromNodes(body)),
   }
-}
-
-function trimTrailingBlankLinesArr(lines: string[]): string[] {
-  let end = lines.length
-  while (end > 0 && lines[end - 1].trim() === '') end--
-  return lines.slice(0, end)
 }
 
 // ─── Control flow parsers ─────────────────────────────────────────────────────
@@ -579,8 +732,8 @@ function parseIf(s: TokenStream): IfNode {
   s.skipNewlines()
   let consequent: MarkupNode[] = []
   if (s.is(TK.INDENT)) {
-    s.consume()
-    consequent = parseMarkupChildrenWithOptions(s, 0, true)
+    const indentTok = s.consume()
+    consequent = parseMarkupChildrenWithOptions(s, indentTok.indent, true)
     if (s.is(TK.DEDENT)) s.consume()
   }
 
@@ -609,8 +762,8 @@ function parseElseIf(s: TokenStream): ElseIfNode {
   s.skipNewlines()
   let consequent: MarkupNode[] = []
   if (s.is(TK.INDENT)) {
-    s.consume()
-    consequent = parseMarkupChildrenWithOptions(s, 0, true)
+    const indentTok = s.consume()
+    consequent = parseMarkupChildrenWithOptions(s, indentTok.indent, true)
     if (s.is(TK.DEDENT)) s.consume()
   }
 
@@ -637,8 +790,8 @@ function parseElseNode(s: TokenStream): ElseNode {
   s.skipNewlines()
   let children: MarkupNode[] = []
   if (s.is(TK.INDENT)) {
-    s.consume()
-    children = parseMarkupChildren(s, 0)
+    const indentTok = s.consume()
+    children = parseMarkupChildren(s, indentTok.indent)
     if (s.is(TK.DEDENT)) s.consume()
   }
   return { kind: 'else', children, span: mergeSpans(tok.span, spanFromNodes(children)) }
@@ -656,8 +809,8 @@ function parseEach(s: TokenStream): EachNode {
   s.skipNewlines()
   let children: MarkupNode[] = []
   if (s.is(TK.INDENT)) {
-    s.consume()
-    children = parseMarkupChildren(s, 0)
+    const indentTok = s.consume()
+    children = parseMarkupChildren(s, indentTok.indent)
     if (s.is(TK.DEDENT)) s.consume()
   }
 
@@ -674,19 +827,29 @@ function parseEach(s: TokenStream): EachNode {
 // ─── Slot parser ──────────────────────────────────────────────────────────────
 
 function parseSlot(s: TokenStream): SlotDefNode | SlotUseNode {
-  const tok = s.consume() // SLOT token e.g. "slot" or "slot:nav"
-  const nameMatch = tok.value.match(/^slot:(.+)$/)
-  const name = nameMatch ? nameMatch[1] : undefined
+  const tok = s.consume() // SLOT token e.g. "slot", "slot:nav", "slot:row(item, index)"
+  const match = tok.value.match(/^slot(?::([a-zA-Z][\w-]*))?(?:\(([^)]*)\))?$/)
+  const name = match?.[1]
+  const paramsStr = match?.[2]
+  const params = paramsStr
+    ? paramsStr.split(',').map((p) => p.trim()).filter(Boolean)
+    : undefined
 
   s.skipNewlines()
 
   // If there are children, it's a slot-use (passing content to a named slot)
   if (s.is(TK.INDENT)) {
-    s.consume()
-    const children = parseMarkupChildren(s, 0)
+    const indentTok = s.consume()
+    const children = parseMarkupChildren(s, indentTok.indent)
     if (s.is(TK.DEDENT)) s.consume()
-    return { kind: 'slot-use', name, children, span: mergeSpans(tok.span, spanFromNodes(children)) } as SlotUseNode
+    return {
+      kind: 'slot-use',
+      name,
+      slotParams: params,
+      children,
+      span: mergeSpans(tok.span, spanFromNodes(children)),
+    } as SlotUseNode
   }
 
-  return { kind: 'slot-def', name, span: tok.span } as SlotDefNode
+  return { kind: 'slot-def', name, params, span: tok.span } as SlotDefNode
 }

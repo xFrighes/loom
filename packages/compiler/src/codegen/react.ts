@@ -1,3 +1,4 @@
+import ts from 'typescript'
 import type {
   LoomFile,
   PropDecl,
@@ -85,12 +86,173 @@ class ReactGenContext {
     this.outputLine += newLines.length
   }
 
-  private transformLogic(src: string, file: LoomFile): string {
-    return src;
+  private transformLogic(src: string, file: LoomFile, additionalLocals: Set<string> = new Set()): string {
+    const stateNames = new Set(file.state?.map((s) => s.name) ?? [])
+    if (stateNames.size === 0) return src
+
+    const sourceFile = ts.createSourceFile('logic.ts', src, ts.ScriptTarget.Latest, true)
+    const replacements: Array<{ start: number; end: number; text: string }> = []
+    const scopeStack: Array<Set<string>> = [new Set(additionalLocals)]
+
+    const isShadowed = (name: string) => {
+      for (let i = scopeStack.length - 1; i >= 0; i--) {
+        if (scopeStack[i].has(name)) return true
+      }
+      return false
+    }
+
+    const visit = (node: ts.Node) => {
+      let pushedScope = false
+      if (ts.isBlock(node) || ts.isSourceFile(node) || ts.isFunctionDeclaration(node) || ts.isArrowFunction(node)) {
+        scopeStack.push(new Set())
+        pushedScope = true
+      }
+
+      // Track declarations
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+        scopeStack[scopeStack.length - 1].add(node.name.text)
+      } else if (ts.isFunctionDeclaration(node) && node.name) {
+        scopeStack[scopeStack.length - 1].add(node.name.text)
+      } else if (ts.isParameter(node) && ts.isIdentifier(node.name)) {
+        scopeStack[scopeStack.length - 1].add(node.name.text)
+      }
+
+      if (ts.isBinaryExpression(node)) {
+        const left = node.left
+        if (ts.isIdentifier(left) && stateNames.has(left.text) && !isShadowed(left.text)) {
+          const setter = `set${capitalize(left.text)}`
+          const operator = node.operatorToken.kind
+
+          if (operator === ts.SyntaxKind.EqualsToken) {
+            const right = node.right.getText(sourceFile)
+            replacements.push({ start: node.getStart(sourceFile), end: node.getEnd(), text: `${setter}(${right})` })
+          } else {
+            // Compound assignments: +=, -=, etc.
+            const opMap: Partial<Record<ts.SyntaxKind, string>> = {
+              [ts.SyntaxKind.PlusEqualsToken]: '+',
+              [ts.SyntaxKind.MinusEqualsToken]: '-',
+              [ts.SyntaxKind.AsteriskEqualsToken]: '*',
+              [ts.SyntaxKind.SlashEqualsToken]: '/',
+              [ts.SyntaxKind.PercentEqualsToken]: '%',
+              [ts.SyntaxKind.AmpersandEqualsToken]: '&',
+              [ts.SyntaxKind.BarEqualsToken]: '|',
+              [ts.SyntaxKind.CaretEqualsToken]: '^',
+              [ts.SyntaxKind.LessThanLessThanEqualsToken]: '<<',
+              [ts.SyntaxKind.GreaterThanGreaterThanEqualsToken]: '>>',
+              [ts.SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken]: '>>>',
+              [ts.SyntaxKind.AsteriskAsteriskEqualsToken]: '**',
+              [ts.SyntaxKind.AmpersandAmpersandEqualsToken]: '&&',
+              [ts.SyntaxKind.BarBarEqualsToken]: '||',
+              [ts.SyntaxKind.QuestionQuestionEqualsToken]: '??',
+            }
+            const op = opMap[operator]
+            if (op) {
+              const right = node.right.getText(sourceFile)
+              replacements.push({
+                start: node.getStart(sourceFile),
+                end: node.getEnd(),
+                text: `${setter}(prev => prev ${op} (${right}))`,
+              })
+            }
+          }
+        }
+      } else if (ts.isPostfixUnaryExpression(node) || ts.isPrefixUnaryExpression(node)) {
+        const operand = node.operand
+        if (ts.isIdentifier(operand) && stateNames.has(operand.text) && !isShadowed(operand.text)) {
+          const setter = `set${capitalize(operand.text)}`
+          if (node.operator === ts.SyntaxKind.PlusPlusToken) {
+            replacements.push({ start: node.getStart(sourceFile), end: node.getEnd(), text: `${setter}(prev => prev + 1)` })
+          } else if (node.operator === ts.SyntaxKind.MinusMinusToken) {
+            replacements.push({ start: node.getStart(sourceFile), end: node.getEnd(), text: `${setter}(prev => prev - 1)` })
+          }
+        }
+      }
+      ts.forEachChild(node, visit)
+      if (pushedScope) scopeStack.pop()
+    }
+
+    visit(sourceFile)
+    replacements.sort((a, b) => b.start - a.start)
+
+    let out = src
+    for (const r of replacements) {
+      out = out.slice(0, r.start) + r.text + out.slice(r.end)
+    }
+    return out
+  }
+
+  private renderBehaviorAttr(beh: BehaviorBlock, file: LoomFile, locals: Set<string>): string {
+    const reactEvent = toReactEvent(beh.event)
+    const modifiers = beh.modifiers
+
+    // Build handler body
+    const stmts: string[] = []
+
+    if (modifiers.includes('prevent')) stmts.push('e.preventDefault()')
+    if (modifiers.includes('stop')) stmts.push('e.stopPropagation()')
+    if (modifiers.includes('self')) stmts.push('if (e.target !== e.currentTarget) return')
+
+    // Key filter modifiers (enter, escape, tab, space, etc.)
+    const keyModifiers: Record<string, string> = {
+      enter: 'Enter',
+      escape: 'Escape',
+      tab: 'Tab',
+      space: ' ',
+      delete: 'Delete',
+      backspace: 'Backspace',
+      arrowup: 'ArrowUp',
+      arrowdown: 'ArrowDown',
+      arrowleft: 'ArrowLeft',
+      arrowright: 'ArrowRight',
+    }
+
+    const keyMod = modifiers.find((m) => keyModifiers[m.toLowerCase()])
+    if (keyMod) {
+      const keyValue = keyModifiers[keyMod.toLowerCase()]
+      stmts.push(`if (e.key !== '${keyValue}') return`)
+    }
+
+    const fullBody = beh.body.map((s) => s.src).join('\n')
+    const transformed = this.transformLogic(fullBody, file, locals)
+    const bodyLines = transformed.split('\n').filter((l) => l.trim())
+    stmts.push(...bodyLines)
+
+    if (stmts.length === 0 && !beh.body.length) {
+      return `${reactEvent}={() => {}}`
+    }
+
+    // Check if we need an event param
+    const needsEvent =
+      modifiers.includes('prevent') ||
+      modifiers.includes('stop') ||
+      modifiers.includes('self') ||
+      keyMod !== undefined ||
+      stmts.some((s) => /\be\./.test(s))
+    const param = needsEvent ? 'e' : '_e'
+
+    const bodyStr = stmts.map((l) => `    ${l}`).join('\n')
+    return `${reactEvent}={(${param}) => {\n${bodyStr}\n  }}`
   }
 
   private detectDependencies(expr: string, file: LoomFile): string[] {
-    return [];
+    const deps = new Set<string>()
+    const stateNames = new Set(file.state?.map((s) => s.name) ?? [])
+    const propNames = new Set(file.props?.map((p) => p.name) ?? [])
+
+    const sourceFile = ts.createSourceFile('expr.ts', expr, ts.ScriptTarget.Latest, true)
+
+    const visit = (node: ts.Node) => {
+      if (ts.isIdentifier(node)) {
+        const name = node.text
+        if (stateNames.has(name) || propNames.has(name)) {
+          deps.add(name)
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+
+    visit(sourceFile)
+    return [...deps].sort()
   }
 
   private pushLines(out: string[], newLines: string[]): void {
@@ -128,8 +290,23 @@ class ReactGenContext {
 
     const lines: string[] = []
 
+    // SSR directive — must be first line
+    if (this.options.ssr) {
+      this.pushLines(lines, [`'use server'`, ``])
+    }
+
     // Imports
-    this.pushLines(lines, [`import React, { useState, useMemo, useEffect } from 'react'`])
+    const reactHooks = []
+    if (!this.options.ssr) {
+      // Hooks are client-only; omit in SSR output to keep the file RSC-safe
+      if (file.state && file.state.length > 0) reactHooks.push('useState')
+      if (file.computed && file.computed.length > 0) reactHooks.push('useMemo')
+      if ((file.onMount && file.onMount.length > 0) || (file.onUpdate && file.onUpdate.length > 0) || (file.onUnmount && file.onUnmount.length > 0)) {
+        reactHooks.push('useEffect')
+      }
+    }
+    const hooksStr = reactHooks.length > 0 ? `, { ${reactHooks.join(', ')} }` : ''
+    this.pushLines(lines, [`import React${hooksStr} from 'react'`])
     if (this.hasCSSModules) {
       const cssImportPath = this.options.cssImportPath ?? `./${this.componentName}.module.css`
       this.pushLines(lines, [`import styles from ${JSON.stringify(cssImportPath)}`])
@@ -279,26 +456,26 @@ class ReactGenContext {
 
   // ── Markup rendering ──────────────────────────────────────────────────────────
 
-  renderMarkupList(nodes: MarkupNode[], indent: string, file: LoomFile): string[] {
+  renderMarkupList(nodes: MarkupNode[], indent: string, file: LoomFile, locals: Set<string> = new Set()): string[] {
     const filtered = nodes.filter((n) => n.kind !== 'comment')
 
     if (filtered.length === 0) return [`${indent}<></>`]
-    if (filtered.length === 1) return this.renderNode(filtered[0], indent, file)
+    if (filtered.length === 1) return this.renderNode(filtered[0], indent, file, locals)
 
     // Multiple root nodes → wrap in Fragment
     const lines: string[] = []
     lines.push(`${indent}<>`)
     this.advanceRenderCursor(1)
     for (const node of filtered) {
-      lines.push(...this.renderNode(node, indent + '  ', file))
+      lines.push(...this.renderNode(node, indent + '  ', file, locals))
     }
     lines.push(`${indent}</>`)
     return lines
   }
 
-  private renderNode(node: MarkupNode, indent: string, file: LoomFile): string[] {
+  private renderNode(node: MarkupNode, indent: string, file: LoomFile, locals: Set<string> = new Set()): string[] {
     const startLine = this.renderCursorLine ?? this.outputLine
-    const lines = this.renderNodeInner(node, indent, file)
+    const lines = this.renderNodeInner(node, indent, file, locals)
     if (lines.length > 0 && node.span) {
       this.mappings.push({
         genLine: startLine,
@@ -315,16 +492,16 @@ class ReactGenContext {
     return lines
   }
 
-  private renderNodeInner(node: MarkupNode, indent: string, file: LoomFile): string[] {
+  private renderNodeInner(node: MarkupNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     switch (node.kind) {
       case 'element':
-        return this.renderElement(node, indent, file)
+        return this.renderElement(node, indent, file, locals)
       case 'text':
-        return this.renderText(node, indent)
+        return this.renderText(node, indent, locals)
       case 'if':
-        return this.renderControl(node, indent, file)
+        return this.renderControl(node, indent, file, locals)
       case 'each':
-        return this.renderEach(node, indent, file)
+        return this.renderEach(node, indent, file, locals)
       case 'slot-def':
         return this.renderSlotDef(node, indent)
       case 'slot-use':
@@ -336,7 +513,7 @@ class ReactGenContext {
     }
   }
 
-  private renderElement(node: ElementNode, indent: string, file: LoomFile): string[] {
+  private renderElement(node: ElementNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     const scopeKey = scopeKeyForElement(node)
 
     // Resolve tag
@@ -366,22 +543,24 @@ class ReactGenContext {
     if (node.id) attrParts.push(`id="${escapeHtmlAttr(node.id)}"`)
 
     // Data attributes
+    const stateNames = new Set(file.state?.map((s) => s.name) ?? [])
     if (node.data) {
       for (const attr of node.data) {
         if (attr.kind === 'as') continue // already handled
         if (
-          (attr.kind === 'static' || attr.kind === 'dynamic') &&
+          (attr.kind === 'static' || attr.kind === 'dynamic' || attr.kind === 'bind') &&
+          'name' in attr &&
           (attr.name === 'class' || attr.name === 'className')
         )
           continue
-        attrParts.push(renderDataAttr(attr))
+        attrParts.push(renderDataAttr(attr, stateNames))
       }
     }
 
     // Behavior attributes
     if (node.behaviors) {
       for (const beh of node.behaviors) {
-        attrParts.push(renderBehaviorAttr(beh))
+        attrParts.push(this.renderBehaviorAttr(beh, file, locals))
         this.warnings.push(...warnReactBehavior(beh, beh.span))
       }
     }
@@ -396,12 +575,20 @@ class ReactGenContext {
     const slotProps: string[] = []
     for (const slot of slotChildren) {
       if (slot.name) {
-        const slotLines = this.renderMarkupList(slot.children, indent + '  ')
+        const slotLocals = new Set(locals)
+        if (slot.slotParams) {
+          for (const p of slot.slotParams) slotLocals.add(p)
+        }
+        const slotLines = this.renderMarkupList(slot.children, indent + '  ', file, slotLocals)
+        const paramSig =
+          slot.slotParams && slot.slotParams.length > 0
+            ? `({ ${slot.slotParams.join(', ')} }) => `
+            : ''
         if (slot.children.length === 1 && isSimpleNode(slot.children[0])) {
-          slotProps.push(` ${slot.name}={${this.renderInline(slot.children[0])}}`)
+          slotProps.push(` ${slot.name}={${paramSig}${this.renderInline(slot.children[0], file, slotLocals)}}`)
         } else {
-          // Multi-line slot: use JSX expression
-          slotProps.push(` ${slot.name}={(\n${slotLines.join('\n')}\n${indent})}`)
+          // Multi-line slot: render prop with JSX body
+          slotProps.push(` ${slot.name}={${paramSig}(\n${slotLines.join('\n')}\n${indent})}`)
         }
       }
     }
@@ -426,7 +613,7 @@ class ReactGenContext {
         lines.push(`${indent}<>{React.createElement(${polyExpr}, ${propObj},`)
         this.advanceRenderCursor(1)
         for (const child of filteredChildren) {
-          lines.push(...this.renderCreateElementChild(child, indent + '  '))
+          lines.push(...this.renderCreateElementChild(child, indent + '  ', file, locals))
         }
         lines.push(`${indent})}</>`)
       }
@@ -441,7 +628,7 @@ class ReactGenContext {
       lines.push(`${indent}<${resolvedTag}${fullAttrs}>`)
       this.advanceRenderCursor(1)
       for (const child of filteredChildren) {
-        lines.push(...this.renderNode(child, indent + '  '))
+        lines.push(...this.renderNode(child, indent + '  ', file, locals))
       }
       lines.push(`${indent}</${resolvedTag}>`)
     }
@@ -499,14 +686,17 @@ class ReactGenContext {
     return `style={{ ${objectEntries.join(', ')} }}`
   }
 
-  private renderText(node: TextNode, indent: string): string[] {
+  private renderText(node: TextNode, indent: string, _locals: Set<string>): string[] {
+    if (/<[a-z][\s\S]*?>/i.test(node.value)) {
+      return [`${indent}<span dangerouslySetInnerHTML={{ __html: ${JSON.stringify(node.value)} }} />`]
+    }
     // Plain text — interpolate {} expressions
     const interpolated = escapeTextWithExpressions(node.value, (expr) => `{${expr}}`)
     return [`${indent}${interpolated}`]
   }
 
-  private renderControl(node: IfNode | ElseIfNode | ElseNode, indent: string, file: LoomFile): string[] {
-    return this.renderTernary(node, indent, true, file)
+  private renderControl(node: IfNode | ElseIfNode | ElseNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
+    return this.renderTernary(node, indent, true, file, locals)
   }
 
   private renderTernary(
@@ -514,6 +704,7 @@ class ReactGenContext {
     indent: string,
     wrapExpression: boolean,
     file: LoomFile,
+    locals: Set<string>,
   ): string[] {
     const lines: string[] = []
 
@@ -521,26 +712,26 @@ class ReactGenContext {
       lines.push(`${indent}${wrapExpression ? '{' : ''}${node.condition} ? (`)
       this.advanceRenderCursor(1)
       const consequentLines = unwrapJsxExpressionLines(
-        this.renderMarkupList(node.consequent, indent + '  ', file),
+        this.renderMarkupList(node.consequent, indent + '  ', file, locals),
       )
       lines.push(...consequentLines)
       lines.push(`${indent}) : (`)
       this.advanceRenderCursor(1)
       if (node.alternate) {
-        const altLines = this.renderTernary(node.alternate, indent + '  ', false, file)
+        const altLines = this.renderTernary(node.alternate, indent + '  ', false, file, locals)
         lines.push(...altLines)
       } else {
         lines.push(`${indent}  null`)
       }
       lines.push(`${indent})${wrapExpression ? '}' : ''}`)
     } else if (node.kind === 'else') {
-      lines.push(...this.renderMarkupList(node.children, indent, file))
+      lines.push(...this.renderMarkupList(node.children, indent, file, locals))
     }
 
     return lines
   }
 
-  private renderEach(node: EachNode, indent: string): string[] {
+  private renderEach(node: EachNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     const lines: string[] = []
 
     // Extract key from first child's : dimension if available
@@ -557,9 +748,15 @@ class ReactGenContext {
     }
 
     const indexParam = node.index ? `, ${node.index}` : ''
+
+    // Add item and index to locals for children
+    const nextLocals = new Set(locals)
+    nextLocals.add(node.item)
+    if (node.index) nextLocals.add(node.index)
+
     lines.push(`${indent}{${node.list}.map((${node.item}${indexParam}) => (`)
     this.advanceRenderCursor(1)
-    const childLines = this.renderMarkupList(node.children, indent + '  ')
+    const childLines = this.renderMarkupList(node.children, indent + '  ', file, nextLocals)
     lines.push(...childLines)
     lines.push(`${indent}))}`)
 
@@ -568,26 +765,31 @@ class ReactGenContext {
 
   private renderSlotDef(node: SlotDefNode, indent: string): string[] {
     if (node.name) {
+      if (node.params && node.params.length > 0) {
+        // Scoped slot: call render prop with data object
+        const args = node.params.join(', ')
+        return [`${indent}{props.${node.name}?.({ ${args} })}`]
+      }
       return [`${indent}{props.${node.name}}`]
     }
     return [`${indent}{props.children}`]
   }
 
   /** Render a node to a compact inline string (for single-node slot values) */
-  private renderInline(node: MarkupNode): string {
+  private renderInline(node: MarkupNode, file: LoomFile, locals: Set<string>): string {
     if (node.kind === 'text') return JSON.stringify(node.value)
     if (node.kind === 'element') {
-      const lines = this.renderWithCursor(-1, () => this.renderElement(node, ''))
+      const lines = this.renderWithCursor(-1, () => this.renderElement(node, '', file, locals))
       return lines.join('').trim()
     }
     return 'null'
   }
 
-  private renderCreateElementChild(node: MarkupNode, indent: string): string[] {
+  private renderCreateElementChild(node: MarkupNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     if (node.kind === 'text') {
       return [`${indent}${textToReactExpression(node.value)}`]
     }
-    return this.renderNode(node, indent)
+    return this.renderNode(node, indent, file, locals)
   }
 }
 
@@ -621,11 +823,13 @@ function textToReactExpression(value: string): string {
 
 // ─── Signature builder ────────────────────────────────────────────────────────
 
+type NamedSlotInfo = { name: string; params?: string[] }
+
 function buildReactSignature(
   name: string,
   generics?: string,
   props?: PropDecl[],
-  namedSlots: string[] = [],
+  namedSlots: NamedSlotInfo[] = [],
 ): { open: string; close: string; destructure?: string } {
   const g = generics ? `<${generics}>` : ''
   const propFields =
@@ -634,7 +838,12 @@ function buildReactSignature(
     ) ?? []
   propFields.push('children?: React.ReactNode')
   for (const slot of namedSlots) {
-    propFields.push(`${slot}?: React.ReactNode`)
+    if (slot.params && slot.params.length > 0) {
+      // Scoped slot: render prop type
+      propFields.push(`${slot.name}?: (data: { ${slot.params.map((p) => `${p}: any`).join('; ')} }) => React.ReactNode`)
+    } else {
+      propFields.push(`${slot.name}?: React.ReactNode`)
+    }
   }
   const typeAnnotation = `{ ${propFields.join('; ')} }`
   const destructure =
@@ -651,7 +860,7 @@ function buildReactSignature(
 
 // ─── Attribute renderers ──────────────────────────────────────────────────────
 
-function renderDataAttr(attr: DataAttr): string {
+function renderDataAttr(attr: DataAttr, stateNames?: Set<string>): string {
   switch (attr.kind) {
     case 'static':
       if (attr.value === '') return attr.name // boolean attr
@@ -662,6 +871,16 @@ function renderDataAttr(attr: DataAttr): string {
       return `{...${attr.expr}}`
     case 'as':
       return '' // handled separately
+    case 'bind': {
+      const valueProp = `${toReactAttrName(attr.name)}={${attr.expr}}`
+      // Derive setter: if expr is a known state var, use set<Name>; else generic handler
+      const isState = stateNames?.has(attr.expr)
+      const setter = isState ? `set${capitalize(attr.expr)}` : undefined
+      const onChange = setter
+        ? `onChange={(e: React.ChangeEvent<HTMLInputElement>) => ${setter}(e.target.value)}`
+        : `onChange={(e: React.ChangeEvent<HTMLInputElement>) => { ${attr.expr} = e.target.value }}`
+      return `${valueProp} ${onChange}`
+    }
   }
 }
 
@@ -700,58 +919,7 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-function renderBehaviorAttr(beh: BehaviorBlock): string {
-  const reactEvent = toReactEvent(beh.event)
-  const modifiers = beh.modifiers
-
-  // Build handler body
-  const stmts: string[] = []
-
-  if (modifiers.includes('prevent')) stmts.push('e.preventDefault()')
-  if (modifiers.includes('stop')) stmts.push('e.stopPropagation()')
-  if (modifiers.includes('self')) stmts.push('if (e.target !== e.currentTarget) return')
-
-  // Key filter modifiers (enter, escape, tab, space, etc.)
-  const keyModifiers: Record<string, string> = {
-    enter: 'Enter',
-    escape: 'Escape',
-    tab: 'Tab',
-    space: ' ',
-    delete: 'Delete',
-    backspace: 'Backspace',
-    arrowup: 'ArrowUp',
-    arrowdown: 'ArrowDown',
-    arrowleft: 'ArrowLeft',
-    arrowright: 'ArrowRight',
-  }
-
-  const keyMod = modifiers.find((m) => keyModifiers[m.toLowerCase()])
-  if (keyMod) {
-    const keyValue = keyModifiers[keyMod.toLowerCase()]
-    stmts.push(`if (e.key !== '${keyValue}') return`)
-  }
-
-  stmts.push(...beh.body.map((s) => s.src).filter((l) => l.trim()))
-
-  if (stmts.length === 0 && !beh.body.length) {
-    return `${reactEvent}={() => {}}`
-  }
-
-
-  // Check if we need an event param
-  const needsEvent =
-    modifiers.includes('prevent') ||
-    modifiers.includes('stop') ||
-    modifiers.includes('self') ||
-    keyMod !== undefined ||
-    stmts.some((s) => /\be\./.test(s))
-  const param = needsEvent ? 'e' : '_e'
-
-  const bodyStr = stmts.map((l) => `    ${l}`).join('\n')
-  return `${reactEvent}={(${param}) => {\n${bodyStr}\n  }}`
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Attribute renderers ──────────────────────────────────────────────────────
 
 function isSimpleNode(node: MarkupNode): boolean {
   return node.kind === 'text'
@@ -818,11 +986,11 @@ function unescapeHtmlAttr(value: string): string {
     .replace(/&amp;/g, '&')
 }
 
-function collectNamedSlots(nodes: MarkupNode[]): string[] {
-  const slots = new Set<string>()
+function collectNamedSlots(nodes: MarkupNode[]): NamedSlotInfo[] {
+  const slots = new Map<string, NamedSlotInfo>()
   const visit = (node: MarkupNode) => {
     if (node.kind === 'slot-def' && node.name) {
-      slots.add(node.name)
+      slots.set(node.name, { name: node.name, params: node.params })
       return
     }
     if (node.kind === 'element' || node.kind === 'slot-use') {
@@ -839,5 +1007,5 @@ function collectNamedSlots(nodes: MarkupNode[]): string[] {
     }
   }
   nodes.forEach(visit)
-  return [...slots]
+  return [...slots.values()]
 }

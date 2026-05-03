@@ -1,0 +1,71 @@
+- props
+  isOpen: boolean
+  onClose: () => void
+  title: string
+
+- pug
+  if isOpen
+    div.modal-overlay
+      @click
+        onClose()
+      
+      div.modal-content
+        :
+          role dialog
+          aria-modal true
+          aria-labelledby modal-title
+          tabindex 0
+        @click.stop
+        @keyup.escape
+          onClose()
+        
+        h2#modal-title {title}
+        
+        div.modal-body
+          slot
+        
+        footer
+          button
+            :
+              autofocus true
+            @click
+              onClose()
+            Close
+
+- css
+  .modal-overlay
+    position fixed
+    top 0
+    left 0
+    width 100%
+    height 100%
+    background rgba(0, 0, 0, 0.5)
+    display flex
+    align-items center
+    justify-content center
+    z-index 1000
+
+  .modal-content
+    background white
+    padding 2rem
+    border-radius 8px
+    box-shadow 0 4px 6px rgba(0, 0, 0, 0.1)
+    max-width 500px
+    width 90%
+    outline none
+
+  #modal-title
+    margin-top 0
+    font-size 1.5rem
+
+  .modal-body
+    margin 1.5rem 0
+
+  footer
+    display flex
+    justify-content flex-end
+    margin-top 1.5rem
+
+  footer button
+    padding 0.5rem 1rem
+    cursor pointer

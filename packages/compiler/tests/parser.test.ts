@@ -119,11 +119,9 @@ describe('parser – behavior dimension', () => {
     const el = parse(src).markup![0]
     if (el.kind !== 'element') throw new Error()
     expect(el.behaviors).toHaveLength(1)
-    expect(el.behaviors![0]).toMatchObject({
-      event: 'click',
-      modifiers: ['prevent'],
-      body: 'doSomething()',
-    })
+    expect(el.behaviors![0].event).toBe('click')
+    expect(el.behaviors![0].modifiers).toEqual(['prevent'])
+    expect(el.behaviors![0].body[0].src).toBe('doSomething()')
     expect(el.behaviors![0].span?.start).toMatchObject({ line: 3, column: 3 })
   })
 })

@@ -15,6 +15,11 @@ export type LoomFile = {
   span?: SourceSpan
   generics?: string // raw generic params, e.g. "<T extends Record<string, any>>"
   props?: PropDecl[]
+  state?: StateDecl[]
+  computed?: ComputedDecl[]
+  onMount?: LogicStatement[]
+  onUpdate?: LogicStatement[]
+  onUnmount?: LogicStatement[]
   logic?: LogicZone
   markup?: MarkupNode[]
 }
@@ -26,9 +31,29 @@ export type PropDecl = {
   defaultValue?: string
 }
 
+export type StateDecl = {
+  span?: SourceSpan
+  name: string
+  type: string
+  defaultValue?: string
+}
+
+export type ComputedDecl = {
+  span?: SourceSpan
+  name: string
+  expr: string
+}
+
 export type LogicZone = {
   span?: SourceSpan
   lang: 'ts' | 'js'
+  src: string
+  statements: LogicStatement[]
+}
+
+export type LogicStatement = {
+  span?: SourceSpan
+  kind: 'import' | 'export' | 'type' | 'statement'
   src: string
 }
 
@@ -62,6 +87,7 @@ export type DataAttr =
   | { kind: 'dynamic'; span?: SourceSpan; name: string; expr: string }
   | { kind: 'spread'; span?: SourceSpan; expr: string }
   | { kind: 'as'; span?: SourceSpan; expr: string } // polymorphic element tag expression
+  | { kind: 'bind'; span?: SourceSpan; name: string; expr: string } // two-way binding directive
 
 // ─── Style dimension (::) ────────────────────────────────────────────────────
 
@@ -93,7 +119,7 @@ export type BehaviorBlock = {
   span?: SourceSpan
   event: string // e.g. "click", "submit", "keyup"
   modifiers: string[] // e.g. ["prevent", "stop"], ["enter"] for keyup.enter
-  body: string // raw JS/TS statements
+  body: LogicStatement[] // now using LogicStatement for consistency
 }
 
 // ─── Control flow ────────────────────────────────────────────────────────────
@@ -148,6 +174,8 @@ export type SlotDefNode = {
   span?: SourceSpan
   kind: 'slot-def'
   name?: string // undefined = default slot
+  /** Scoped slot: parameter names exposed to the consumer, e.g. ['item', 'index'] */
+  params?: string[]
 }
 
 /** `slot:name` used when *calling* a component — wraps content for a named slot */
@@ -156,6 +184,8 @@ export type SlotUseNode = {
   kind: 'slot-use'
   name?: string // undefined = default children
   children: MarkupNode[]
+  /** Scoped slot: param names captured from the component's slot data */
+  slotParams?: string[]
 }
 
 export type CommentNode = {

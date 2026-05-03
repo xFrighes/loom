@@ -1,0 +1,23 @@
+{
+  "name": "@loom-lang/loom_core",
+  "version": "0.1.0",
+  "description": "Rust-based core for the Loom language",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "loom_core",
+    "package": {
+      "name": "@loom-lang/loom_core"
+    }
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.4"
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "test": "echo \"Rust tests skipped due to napi linking\""
+  }
+}

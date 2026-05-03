@@ -41,6 +41,26 @@ describe('validation', () => {
     ]))
   })
 
+  it('reports malformed state declarations before codegen', () => {
+    const file = parse('- state\n  : number = 0\n  total-count:\n- pug\ndiv')
+    const diagnostics = validate(file)
+
+    expect(diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'loom/state-name' }),
+      expect.objectContaining({ code: 'loom/state-type' }),
+    ]))
+  })
+
+  it('reports malformed computed declarations before codegen', () => {
+    const file = parse('- computed\n  : count + 1\n  total-count = \n- pug\ndiv')
+    const diagnostics = validate(file)
+
+    expect(diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'loom/computed-name' }),
+      expect.objectContaining({ code: 'loom/computed-expr' }),
+    ]))
+  })
+
   it('formats diagnostics with source coordinates', () => {
     const { diagnostics } = analyze('- pug\nelse\n  p Nope')
     expect(formatDiagnostic(diagnostics[0]!)).toContain('loom/control-flow-placement')

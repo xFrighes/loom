@@ -1,15 +1,33 @@
 import { spawnSync } from 'node:child_process'
 
+const isFast = process.argv.includes('--fast')
+
+// Only include packages that were originally part of the verification
+const filterArgs = [
+  '--filter', '@loom-lang/compiler',
+  '--filter', '@loom-lang/testing',
+  '--filter', '@loom-lang/tailwind',
+  '--filter', 'eslint-plugin-loom',
+  '--filter', '@loom-lang/loom-llm',
+  '--filter', 'vite-plugin-loom'
+]
+
 const steps = [
-  ['Compiler typecheck', ['pnpm', '--filter', '@loom-lang/compiler', 'typecheck']],
-  ['Compiler tests', ['pnpm', '--filter', '@loom-lang/compiler', 'test']],
-  ['Compiler build', ['pnpm', '--filter', '@loom-lang/compiler', 'build']],
-  ['Vite plugin tests', ['pnpm', '--filter', 'vite-plugin-loom', 'test']],
-  ['Vite plugin build', ['pnpm', '--filter', 'vite-plugin-loom', 'build']],
-  ['React demo build', ['pnpm', '--filter', 'react-demo', 'build']],
-  ['Vue demo build', ['pnpm', '--filter', 'vue-demo', 'build']],
-  ['Svelte demo build', ['pnpm', '--filter', 'svelte-demo', 'build']],
-  ['Workspace build', ['pnpm', '-r', 'build']],
+  ['Source lint', ['npx', 'pnpm', 'run', '--if-present', 'lint']],
+  ['Workspace typecheck', ['npx', 'pnpm', '-r', ...filterArgs, 'run', '--if-present', 'typecheck']],
+  ['Workspace test', ['npx', 'pnpm', '-r', ...filterArgs, 'run', '--if-present', 'test']],
+  [
+    'Workspace build',
+    [
+      'npx',
+      'pnpm',
+      '-r',
+      ...(isFast ? ['--filter', '!*-demo'] : []),
+      'run',
+      '--if-present',
+      'build',
+    ],
+  ],
 ]
 
 for (const [label, command] of steps) {

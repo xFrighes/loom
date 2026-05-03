@@ -109,4 +109,20 @@ describe('vite-plugin-loom', () => {
     await expect(plugin.resolveId!.call({} as any, entryId, undefined)).resolves.toBe(entryId)
     await expect(plugin.resolveId!.call({} as any, styleId, undefined)).resolves.toBe(styleId)
   })
+
+  it('recompiles when the source file changes between loads', async () => {
+    const sourcePath = writeFixture('- pug\ndiv First')
+    const plugin = loom({ target: 'react' })
+    plugin.configResolved?.({ plugins: [] } as any)
+
+    const entryId = `${sourcePath.slice(0, -'.loom'.length)}-loom.js?loom-entry=1&loom-target=react&loom-source=${encodeURIComponent(sourcePath)}`
+
+    const first = unwrapLoadResult(await plugin.load!.call(createLoadContext() as any, entryId))
+    writeFileSync(sourcePath, '- pug\ndiv Second', 'utf8')
+    const second = unwrapLoadResult(await plugin.load!.call(createLoadContext() as any, entryId))
+
+    expect(first).toContain('First')
+    expect(second).toContain('Second')
+    expect(second).not.toContain('First')
+  })
 })

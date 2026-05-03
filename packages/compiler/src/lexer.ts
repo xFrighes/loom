@@ -34,7 +34,18 @@ export type Token = {
 
 // ─── Zone kinds that capture raw content ─────────────────────────────────────
 
-const CONTEXT_SWITCH_NAMES = new Set(['generics', 'props', 'ts', 'js', 'pug'])
+const CONTEXT_SWITCH_NAMES = new Set([
+  'generics',
+  'props',
+  'state',
+  'computed',
+  'onMount',
+  'onUpdate',
+  'onUnmount',
+  'ts',
+  'js',
+  'pug',
+])
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -66,7 +77,8 @@ function stripIndent(line: string, amount: number): string {
 /** Classify a trimmed non-empty line into its token type */
 function classifyLine(trimmed: string): TK {
   // Context switch
-  if (/^- (generics|props|ts|js|pug)(\s|$)/.test(trimmed)) return TK.CONTEXT_SWITCH
+  if (/^- (generics|props|state|computed|onMount|onUpdate|onUnmount|ts|js|pug)(\s|$)/.test(trimmed))
+    return TK.CONTEXT_SWITCH
   // Comments
   if (trimmed.startsWith('//')) return TK.COMMENT
   // Dimension openers
@@ -79,9 +91,9 @@ function classifyLine(trimmed: string): TK {
   if (trimmed === 'else') return TK.CONTROL_ELSE
   if (/^each\s+\w+(\s*,\s*\w+)?\s+in\s+/.test(trimmed)) return TK.CONTROL_EACH
   // Slot
-  if (/^slot(:[a-zA-Z][\w-]*)?$/.test(trimmed)) return TK.SLOT
-  // Component (starts with uppercase)
-  if (/^[A-Z]/.test(trimmed)) return TK.COMPONENT
+  if (/^slot(:[a-zA-Z][\w-]*)?(\([^)]*\))?$/.test(trimmed)) return TK.SLOT
+  // Component (starts with uppercase, must be valid identifier)
+  if (/^[A-Z][a-zA-Z0-9]*(\s|$)/.test(trimmed)) return TK.COMPONENT
   // Tag (starts with lowercase letter, or starts with tag+class/id syntax)
   if (/^[a-z][a-zA-Z0-9]*([.#][a-zA-Z0-9_-]*)*(\s|$)/.test(trimmed)) return TK.TAG
   // element keyword (special lowercase component)
@@ -106,10 +118,11 @@ export function tokenize(src: string): LexerResult {
   const indentStack: number[] = [0]
 
   // Track current zone
-  type Zone = 'pug' | 'ts' | 'js' | 'generics' | 'props' | null
-  let zone: Zone = null
+  let zone: string | null = null
   // Base indent of current zone (for raw zones, we capture lines at higher indent)
   let zoneBaseIndent = 0
+  // When inside a dimension block, treat everything as TEXT to avoid misclassification
+  let rawUntilIndent: number | null = null
 
   function position(line: number, column: number, offset: number): SourcePosition {
     return { line, column, offset }
@@ -138,8 +151,8 @@ export function tokenize(src: string): LexerResult {
       push(TK.INDENT, '', lineNum, newIndent + 1, newIndent, span(lineNum, newIndent + 1, newIndent + 1, lineOffset))
     } else {
       while (newIndent < currentIndent()) {
-        indentStack.pop()
-        push(TK.DEDENT, '', lineNum, newIndent + 1, currentIndent(), span(lineNum, newIndent + 1, newIndent + 1, lineOffset))
+        const prev = indentStack.pop()!
+        push(TK.DEDENT, '', lineNum, newIndent + 1, prev, span(lineNum, newIndent + 1, newIndent + 1, lineOffset))
       }
       if (newIndent !== currentIndent()) {
         errors.push({ message: `Inconsistent indentation`, line: lineNum, span: span(lineNum, 1, Math.max(1, newIndent + 1), lineOffset) })
@@ -154,7 +167,7 @@ export function tokenize(src: string): LexerResult {
     const lineNum = i + 1
 
     if (rawLine.trim() === '') {
-      if (zone === 'ts' || zone === 'js' || zone === 'generics' || zone === 'props') {
+      if (zone && CONTEXT_SWITCH_NAMES.has(zone) && zone !== 'pug') {
         push(TK.RAW_LINE, '', lineNum, 1, 0, span(lineNum, 1, 1, lineOffset))
       } else if (zone === 'pug') {
         push(TK.NEWLINE, '', lineNum, 1, 0, span(lineNum, 1, 1, lineOffset))
@@ -167,27 +180,25 @@ export function tokenize(src: string): LexerResult {
     const trimmed = rawLine.trim()
 
     // ── Context switch detection (col 0) ──────────────────────────────────────
-    const ctxMatch = trimmed.match(/^- (generics|props|ts|js|pug)(.*)$/)
+    const ctxMatch = trimmed.match(/^- (generics|props|state|computed|onMount|onUpdate|onUnmount|ts|js|pug)(.*)$/)
     if (ctxMatch && indent === 0) {
       // Flush any remaining dedents back to 0
       while (indentStack.length > 1) {
-        indentStack.pop()
-        push(TK.DEDENT, '', lineNum, 1, currentIndent(), span(lineNum, 1, 1, lineOffset))
+        const prev = indentStack.pop()!
+        push(TK.DEDENT, '', lineNum, 1, prev, span(lineNum, 1, 1, lineOffset))
       }
       const zoneName = ctxMatch[1] ?? 'pug'
-      zone = zoneName as Zone
-      zoneBaseIndent = -1 // will be set on first content line
+      zone = zoneName
+      zoneBaseIndent = 0 // Will be set on first content line for raw zones
+      rawUntilIndent = null
       push(TK.CONTEXT_SWITCH, zoneName, lineNum, indent + 1, 0, span(lineNum, indent + 1, rawLine.length + 1, lineOffset))
       lineOffset += rawLine.length + 1
       continue
     }
 
-    // ── Raw zones (ts, js, generics, props) ───────────────────────────────────
-    if (zone === 'ts' || zone === 'js' || zone === 'generics' || zone === 'props') {
-      // Determine base indent from first content line
-      if (zoneBaseIndent === -1) {
-        zoneBaseIndent = indent
-      }
+    // ── Raw zones (everything but pug) ────────────────────────────────────────
+    if (zone && CONTEXT_SWITCH_NAMES.has(zone) && zone !== 'pug') {
+      if (zoneBaseIndent === 0) zoneBaseIndent = indent
       const strippedLine = stripIndent(rawLine, zoneBaseIndent)
       push(
         TK.RAW_LINE,
@@ -203,14 +214,16 @@ export function tokenize(src: string): LexerResult {
 
     // ── Pug zone (or pre-zone text) ───────────────────────────────────────────
     if (zone === 'pug' || zone === null) {
-      // Check if this is a behavior body line (inside an @ block)
-      // We handle this specially: @ openers are emitted as DIMENSION_BEHAVIOR,
-      // and their indented body lines are emitted as RAW_LINE tokens.
-      // The parser is responsible for collecting them.
-
       emitIndentChanges(indent, lineNum, lineOffset)
+      
+      if (rawUntilIndent !== null && indent <= rawUntilIndent) {
+        rawUntilIndent = null
+      }
 
-      const tk = classifyLine(trimmed)
+      let tk = classifyLine(trimmed)
+      if (rawUntilIndent !== null) {
+        tk = TK.TEXT
+      }
 
       if (tk === TK.COMMENT) {
         push(TK.COMMENT, trimmed.slice(2).trim(), lineNum, indent + 1, indent, span(lineNum, indent + 1, rawLine.length + 1, lineOffset))
@@ -219,6 +232,10 @@ export function tokenize(src: string): LexerResult {
       }
 
       push(tk, trimmed, lineNum, indent + 1, indent, span(lineNum, indent + 1, rawLine.length + 1, lineOffset))
+      
+      if (tk === TK.DIMENSION_DATA || tk === TK.DIMENSION_STYLE || tk === TK.DIMENSION_BEHAVIOR) {
+        rawUntilIndent = indent
+      }
     }
 
     lineOffset += rawLine.length + 1
@@ -226,8 +243,8 @@ export function tokenize(src: string): LexerResult {
 
   // Close any remaining indents
   while (indentStack.length > 1) {
-    indentStack.pop()
-    push(TK.DEDENT, '', lines.length, 1, currentIndent(), span(lines.length, 1, 1, lineOffset))
+    const prev = indentStack.pop()!
+    push(TK.DEDENT, '', lines.length, 1, prev, span(lines.length, 1, 1, lineOffset))
   }
 
   push(TK.EOF, '', lines.length + 1, 1, 0, {

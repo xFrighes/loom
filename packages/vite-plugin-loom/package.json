@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ampproject/remapping": "^2.3.0",
     "@loom-lang/compiler": "workspace:*"
   },
   "peerDependencies": {
