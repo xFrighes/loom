@@ -92,8 +92,8 @@ function classifyLine(trimmed: string): TK {
   if (/^each\s+\w+(\s*,\s*\w+)?\s+in\s+/.test(trimmed)) return TK.CONTROL_EACH
   // Slot
   if (/^slot(:[a-zA-Z][\w-]*)?(\([^)]*\))?$/.test(trimmed)) return TK.SLOT
-  // Component (starts with uppercase, must be valid identifier)
-  if (/^[A-Z][a-zA-Z0-9]*(\s|$)/.test(trimmed)) return TK.COMPONENT
+  // Component (starts with uppercase, optionally followed by class/id selector syntax)
+  if (/^[A-Z][a-zA-Z0-9]*([.#][a-zA-Z0-9_-]*)*(\s|$)/.test(trimmed)) return TK.COMPONENT
   // Tag (starts with lowercase letter, or starts with tag+class/id syntax)
   if (/^[a-z][a-zA-Z0-9]*([.#][a-zA-Z0-9_-]*)*(\s|$)/.test(trimmed)) return TK.TAG
   // element keyword (special lowercase component)

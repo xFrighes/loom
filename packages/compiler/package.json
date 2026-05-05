@@ -47,8 +47,8 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup src/index.ts src/cli.ts src/language-server.ts src/prettier-plugin.ts --format esm --dts --sourcemap --tsconfig tsconfig.build.json",
-    "dev": "tsup src/index.ts src/cli.ts src/language-server.ts src/prettier-plugin.ts --format esm --dts --sourcemap --tsconfig tsconfig.build.json --watch",
+    "build": "tsup src/index.ts src/language-server.ts src/prettier-plugin.ts --format esm --dts --sourcemap --tsconfig tsconfig.build.json && tsup src/cli.ts --format esm --sourcemap --tsconfig tsconfig.build.json",
+    "dev": "tsup src/index.ts src/language-server.ts src/prettier-plugin.ts --format esm --dts --sourcemap --tsconfig tsconfig.build.json --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "benchmark": "tsx scripts/benchmark.ts",

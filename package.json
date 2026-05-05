@@ -3,12 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck",
+    "build": "bun run --filter '*' build",
+    "test": "bun run --filter '*' test",
+    "typecheck": "bun run --filter '*' typecheck",
     "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
     "typescript": "^5.4.0"
-  }
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ]
 }

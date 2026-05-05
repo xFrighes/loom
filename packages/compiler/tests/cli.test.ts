@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { runCli } from '../src/cli.js'
+import { defaultWatchFile, runCli } from '../src/cli.js'
 
 function createIo() {
   let stdout = ''
@@ -27,6 +27,15 @@ function createIo() {
 }
 
 describe('loomc CLI', () => {
+  it('provides a default file watcher for real --watch invocations', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'loom-cli-watch-'))
+    const filePath = path.join(root, 'App.loom')
+    writeFileSync(filePath, '- pug\ndiv Hello', 'utf8')
+
+    const watcher = defaultWatchFile(filePath, () => {})
+    watcher.close()
+  })
+
   it('supports --watch without exiting and reruns on file changes', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'loom-cli-'))
     const filePath = path.join(root, 'App.loom')

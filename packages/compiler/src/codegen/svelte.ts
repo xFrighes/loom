@@ -33,6 +33,7 @@ export class SvelteTarget implements CodegenTarget {
 
 class SvelteGenContext {
   private cssBlocks: Array<{ scopeKey: string; block: StyleBlock; className: string }> = []
+  private cssClassMap: Map<string, string> = new Map()
   readonly warnings: CompilerDiagnostic[] = []
   readonly mappings: Mapping[] = []
   private outputLine = 0
@@ -164,6 +165,7 @@ class SvelteGenContext {
         if (node.styles && node.styles.length > 0) {
           const className = key.replace(/[^a-zA-Z0-9_-]/g, '_')
           this.cssBlocks.push({ scopeKey: key, block: node.styles, className })
+          this.cssClassMap.set(key, className)
         }
         if (node.children.length > 0) this.collectStyles(node.children)
       } else if (node.kind === 'if') {
@@ -229,13 +231,12 @@ class SvelteGenContext {
     }
 
     // Classes — Svelte scopes natively
+    const scopedClass = this.cssClassMap.get(key)
     if (node.classes.length > 0) {
-      const cssBlock = this.cssBlocks.find(b => b.scopeKey === key)
-      const extraClass = cssBlock ? ` ${cssBlock.className}` : ''
+      const extraClass = scopedClass ? ` ${scopedClass}` : ''
       attrs.push(`class="${node.classes.join(' ')}${extraClass}"`)
-    } else {
-      const cssBlock = this.cssBlocks.find(b => b.scopeKey === key)
-      if (cssBlock) attrs.push(`class="${cssBlock.className}"`)
+    } else if (scopedClass) {
+      attrs.push(`class="${scopedClass}"`)
     }
 
     if (node.id) attrs.push(`id="${node.id}"`)
@@ -404,7 +405,7 @@ function renderSvelteDataAttr(attr: DataAttr): string {
   switch (attr.kind) {
     case 'static':
       if (attr.value === '') return attr.name
-      return `${attr.name}="${attr.value}"`
+      return `${attr.name}="${escapeHtmlAttr(attr.value)}"`
     case 'dynamic':
       return `${attr.name}={${attr.expr}}`
     case 'spread':
@@ -414,4 +415,13 @@ function renderSvelteDataAttr(attr: DataAttr): string {
     case 'bind':
       return `bind:${attr.name}={${attr.expr}}`
   }
+}
+
+function escapeHtmlAttr(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }

@@ -70,6 +70,11 @@ describe('React codegen', () => {
     expect(out).toContain('React.createElement')
   })
 
+  it('preserves escaped static attrs in polymorphic props', () => {
+    const out = react("- pug\nelement\n  :\n    as {'button'}\n    title Bob's")
+    expect(out).toContain(`"title": "Bob's"`)
+  })
+
   it('builds props signature', () => {
     const out = react("- props\n  name: string\n  count: number = 0\n- pug\ndiv")
     expect(out).toContain('name: string')
@@ -149,6 +154,11 @@ describe('Vue codegen', () => {
     expect(out).toContain('v-bind="obj"')
   })
 
+  it('escapes static attribute values', () => {
+    const out = vue('- pug\ndiv\n  :\n    title 5 > "x" & < y')
+    expect(out).toContain('title="5 &gt; &quot;x&quot; &amp; &lt; y"')
+  })
+
   it('renders @click.prevent natively', () => {
     const out = vue('- pug\nbutton\n  @click.prevent\n    submit()')
     expect(out).toContain('@click.prevent')
@@ -214,6 +224,11 @@ describe('Svelte codegen', () => {
   it('renders on:click|preventDefault', () => {
     const out = svelte('- pug\nbutton\n  @click.prevent\n    submit()')
     expect(out).toContain('on:click|preventDefault=')
+  })
+
+  it('escapes static attribute values', () => {
+    const out = svelte('- pug\ndiv\n  :\n    title 5 > "x" & < y')
+    expect(out).toContain('title="5 &gt; &quot;x&quot; &amp; &lt; y"')
   })
 
   it('renders {#if} blocks', () => {

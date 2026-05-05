@@ -228,6 +228,12 @@ function printDataAttr(attr: DataAttr): string {
       return `...${attr.expr}`
     case 'as':
       return `as {${attr.expr}}`
+    case 'bind':
+      return attr.name === attr.expr ? `bind:${attr.name}` : `bind:${attr.name} ${attr.expr}`
+    default: {
+      const _exhaustive: never = attr
+      return _exhaustive
+    }
   }
 }
 

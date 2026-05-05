@@ -26,6 +26,11 @@ describe('lexer', () => {
     expect(toks.some(t => t.type === TK.COMPONENT && t.value === 'UserCard')).toBe(true)
   })
 
+  it('emits COMPONENT for PascalCase selectors with classes', () => {
+    const toks = tokens('- pug\nLayout.shell')
+    expect(toks.some(t => t.type === TK.COMPONENT && t.value === 'Layout.shell')).toBe(true)
+  })
+
   it('emits DIMENSION_DATA for standalone ":"', () => {
     const src = '- pug\ndiv\n  :'
     const toks = tokens(src)

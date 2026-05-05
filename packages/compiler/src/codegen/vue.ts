@@ -340,7 +340,7 @@ class VueGenContext {
 
   private renderText(node: TextNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     if (/<[a-z][\s\S]*?>/i.test(node.value)) {
-      return [`${indent}<span v-html="'${escapeAttr(node.value)}'" />`]
+      return [`${indent}<span v-html="${escapeHtmlAttr(JSON.stringify(node.value))}" />`]
     }
     const interpolated = node.value.replace(/\{([^}]+)\}/g, (_m, expr) => `{{ ${transformVueLogic(expr, file, locals)} }}`)
     return [`${indent}${interpolated}`]
@@ -553,7 +553,7 @@ function renderVueDataAttr(attr: DataAttr, file: LoomFile, locals: Set<string>):
   switch (attr.kind) {
     case 'static':
       if (attr.value === '') return attr.name
-      return `${attr.name}="${attr.value}"`
+      return `${attr.name}="${escapeHtmlAttr(attr.value)}"`
     case 'dynamic':
       return `:${attr.name}="${transformVueLogic(attr.expr, file, locals)}"`
     case 'spread':
@@ -570,8 +570,13 @@ function renderVueDataAttr(attr: DataAttr, file: LoomFile, locals: Set<string>):
   }
 }
 
-function escapeAttr(str: string): string {
-  return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+function escapeHtmlAttr(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 function getTagName(tag: string): string {

@@ -2,32 +2,10 @@ import { spawnSync } from 'node:child_process'
 
 const isFast = process.argv.includes('--fast')
 
-// Only include packages that were originally part of the verification
-const filterArgs = [
-  '--filter', '@loom-lang/compiler',
-  '--filter', '@loom-lang/testing',
-  '--filter', '@loom-lang/tailwind',
-  '--filter', 'eslint-plugin-loom',
-  '--filter', '@loom-lang/loom-llm',
-  '--filter', 'vite-plugin-loom'
-]
-
 const steps = [
-  ['Source lint', ['npx', 'pnpm', 'run', '--if-present', 'lint']],
-  ['Workspace typecheck', ['npx', 'pnpm', '-r', ...filterArgs, 'run', '--if-present', 'typecheck']],
-  ['Workspace test', ['npx', 'pnpm', '-r', ...filterArgs, 'run', '--if-present', 'test']],
-  [
-    'Workspace build',
-    [
-      'npx',
-      'pnpm',
-      '-r',
-      ...(isFast ? ['--filter', '!*-demo'] : []),
-      'run',
-      '--if-present',
-      'build',
-    ],
-  ],
+  ['Workspace typecheck', ['bun', 'run', '--filter', '*', 'typecheck']],
+  ['Workspace test', ['bun', 'run', '--filter', '*', 'test']],
+  ['Workspace build', ['bun', 'run', '--filter', isFast ? '!*demo' : '*', 'build']],
 ]
 
 for (const [label, command] of steps) {

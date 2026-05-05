@@ -355,10 +355,15 @@ class ReactGenContext {
     // Reactivity: State
     if (file.state && file.state.length > 0) {
       for (const s of file.state) {
-        const setter = `set${capitalize(s.name)}`
-        const type = s.type !== 'any' ? `<${s.type}>` : ''
         const defaultValue = s.defaultValue !== undefined ? s.defaultValue : ''
-        this.pushLines(lines, [`  const [${s.name}, ${setter}] = useState${type}(${defaultValue})`])
+        if (this.options.ssr) {
+          const annotation = s.type !== 'any' ? `: ${s.type}` : ''
+          this.pushLines(lines, [`  const ${s.name}${annotation} = ${defaultValue}`])
+        } else {
+          const setter = `set${capitalize(s.name)}`
+          const type = s.type !== 'any' ? `<${s.type}>` : ''
+          this.pushLines(lines, [`  const [${s.name}, ${setter}] = useState${type}(${defaultValue})`])
+        }
       }
       this.pushLines(lines, [''])
     }
@@ -366,15 +371,19 @@ class ReactGenContext {
     // Reactivity: Computed
     if (file.computed && file.computed.length > 0) {
       for (const c of file.computed) {
-        const deps = this.detectDependencies(c.expr, file)
-        const depsStr = deps.length > 0 ? `[${deps.join(', ')}]` : '[]'
-        this.pushLines(lines, [`  const ${c.name} = useMemo(() => ${c.expr}, ${depsStr})`])
+        if (this.options.ssr) {
+          this.pushLines(lines, [`  const ${c.name} = ${c.expr}`])
+        } else {
+          const deps = this.detectDependencies(c.expr, file)
+          const depsStr = deps.length > 0 ? `[${deps.join(', ')}]` : '[]'
+          this.pushLines(lines, [`  const ${c.name} = useMemo(() => ${c.expr}, ${depsStr})`])
+        }
       }
       this.pushLines(lines, [''])
     }
 
     // Reactivity: Lifecycles
-    if (file.onMount && file.onMount.length > 0) {
+    if (!this.options.ssr && file.onMount && file.onMount.length > 0) {
       this.pushLines(lines, ['  useEffect(() => {'])
       for (const stmt of file.onMount) {
         this.pushLines(lines, [`    ${this.transformLogic(stmt.src, file)}`])
@@ -382,7 +391,7 @@ class ReactGenContext {
       this.pushLines(lines, ['  }, [])', ''])
     }
 
-    if (file.onUpdate && file.onUpdate.length > 0) {
+    if (!this.options.ssr && file.onUpdate && file.onUpdate.length > 0) {
       this.pushLines(lines, ['  useEffect(() => {'])
       for (const stmt of file.onUpdate) {
         this.pushLines(lines, [`    ${this.transformLogic(stmt.src, file)}`])
@@ -390,7 +399,7 @@ class ReactGenContext {
       this.pushLines(lines, ['])', ''])
     }
 
-    if (file.onUnmount && file.onUnmount.length > 0) {
+    if (!this.options.ssr && file.onUnmount && file.onUnmount.length > 0) {
       this.pushLines(lines, ['  useEffect(() => {', '    return () => {'])
       for (const stmt of file.onUnmount) {
         this.pushLines(lines, [`      ${this.transformLogic(stmt.src, file)}`])
@@ -980,6 +989,7 @@ function toObjectKey(name: string): string {
 
 function unescapeHtmlAttr(value: string): string {
   return value
+    .replace(/&#39;/g, "'")
     .replace(/&quot;/g, '"')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')

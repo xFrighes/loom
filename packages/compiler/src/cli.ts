@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, watch, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { analyze, compile, CompileError, formatDiagnostic } from './index.js'
@@ -143,10 +143,11 @@ export const runCli = (argv: string[], io: CliIo = defaultIo(), options: CliOpti
     return 0
   }
 
-  if (watchMode && options.watchFile) {
+  if (watchMode) {
+    const watchFile = options.watchFile ?? defaultWatchFile
     io.stderr(`Watching ${filePath}\n`)
     execute()
-    options.watchFile(filePath, () => {
+    watchFile(filePath, () => {
       io.stderr(`File changed, recompiling...\n`)
       execute()
     })
@@ -186,6 +187,10 @@ function readFlag(argv: string[], flag: string) {
   const index = argv.indexOf(flag)
   if (index === -1) return null
   return argv[index + 1] ?? null
+}
+
+export function defaultWatchFile(path: string, callback: () => void) {
+  return watch(path, callback)
 }
 
 function defaultIo(): CliIo {

@@ -78,6 +78,8 @@ export function analyze(src: string): AnalyzeResult {
  * const { code, css } = compile(src, { componentName: 'Button', target: 'react' })
  */
 export function compile(src: string, options: CompileOptions): CompileResult {
+  validateCompileOptions(options)
+
   const { file, diagnostics } = analyze(src)
 
   if (!file || hasErrors(diagnostics)) {
@@ -102,5 +104,15 @@ export function compile(src: string, options: CompileOptions): CompileResult {
       const _exhaustive: never = options.target
       throw new Error(`Unknown target: ${options.target}`)
     }
+  }
+}
+
+function validateCompileOptions(options: CompileOptions): void {
+  if (!/^[A-Za-z_$][\w$]*$/.test(options.componentName)) {
+    throw new Error(`Invalid componentName "${options.componentName}". Component names must be valid JavaScript identifiers.`)
+  }
+
+  if (options.target !== 'react' && options.target !== 'vue' && options.target !== 'svelte') {
+    throw new Error(`Unknown target: ${String(options.target)}`)
   }
 }

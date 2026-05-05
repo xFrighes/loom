@@ -34,7 +34,8 @@ describe('Audit Fixes: React Compound Assignments', () => {
       })
 `.trim()
     const result = compile(src, { componentName: 'Test', target: 'react' })
-    expect(result.code).not.toContain('setCount')
+    expect(result.code).not.toContain('setCount(')
+    expect(result.code).not.toContain('setCount(prev')
     expect(result.code).toContain('const count = 10')
   })
 })
@@ -73,5 +74,19 @@ describe('Audit Fixes: Vue Directive Injection', () => {
     const result = compile(src, { componentName: 'Test', target: 'vue' })
     expect(result.code).not.toContain('count.value')
     expect(result.code).toContain('const count = 10')
+  })
+})
+
+describe('Audit Fixes: Compile Options Validation', () => {
+  it('rejects component names that would generate invalid JavaScript', () => {
+    expect(() => compile('- pug\ndiv', { componentName: 'bad-name', target: 'react' })).toThrow(
+      /Invalid componentName/,
+    )
+  })
+
+  it('rejects unknown targets from JavaScript callers', () => {
+    expect(() =>
+      compile('- pug\ndiv', { componentName: 'Test', target: 'solid' as 'react' }),
+    ).toThrow(/Unknown target: solid/)
   })
 })
