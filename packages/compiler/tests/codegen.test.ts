@@ -59,6 +59,11 @@ describe('React codegen', () => {
     expect(out).toContain('user')
   })
 
+  it('uses explicit loop keys in React', () => {
+    const out = react('- pug\neach user in users by user.id\n  p {user.name}')
+    expect(out).toContain('key={user.id}')
+  })
+
   it('wraps multiple root nodes in fragment', () => {
     const out = react('- pug\ndiv a\nspan b')
     expect(out).toContain('<>')
@@ -198,6 +203,11 @@ describe('Vue codegen', () => {
     expect(out).toContain('color: red')
   })
 
+  it('uses explicit loop keys in Vue', () => {
+    const out = vue('- pug\neach user in users key {user.id}\n  p {user.name}')
+    expect(out).toContain(':key="user.id"')
+  })
+
   it('preserves authored classes alongside module-scoped classes', () => {
     const out = vue('- pug\ndiv.card\n  ::\n    color red')
     expect(out).toContain("['card', $style[")
@@ -264,6 +274,132 @@ describe('Svelte codegen', () => {
     expect(out).toContain('<style>')
     expect(out).toContain('color: red')
   })
+
+  it('uses explicit loop keys in Svelte', () => {
+    const out = svelte('- pug\neach user in users by user.id\n  p {user.name}')
+    expect(out).toContain('{#each users as user (user.id)}')
+  })
+})
+
+// ─── Security and cross-target robustness ─────────────────────────────────────
+
+describe('XSS audit', () => {
+  const payload = [
+    '- pug',
+    'p Hello {name}',
+    'a',
+    '  :',
+    '    title 5 > "x" & < y',
+    '  Click <img src="javascript:alert(1)" onerror="alert(2)"><script>alert(3)</script>',
+  ].join('\n')
+
+  it('keeps dynamic text expressions on framework-escaped render paths', () => {
+    expect(compile(payload, { componentName: 'Test', target: 'react' }).code).toContain('Hello {name}')
+    expect(compile(payload, { componentName: 'Test', target: 'vue' }).code).toContain('Hello {{ name }}')
+    expect(compile(payload, { componentName: 'Test', target: 'svelte' }).code).toContain('Hello {name}')
+  })
+
+  it('escapes static attributes across all targets', () => {
+    for (const target of ['react', 'vue', 'svelte'] as const) {
+      const out = compile(payload, { componentName: 'Test', target }).code
+      expect(out).toContain('title="5 &gt; &quot;x&quot; &amp; &lt; y"')
+    }
+  })
+
+  it('sanitizes static inline HTML before raw HTML framework APIs are emitted', () => {
+    const reactOut = compile(payload, { componentName: 'Test', target: 'react' }).code
+    const vueOut = compile(payload, { componentName: 'Test', target: 'vue' }).code
+    const svelteOut = compile(payload, { componentName: 'Test', target: 'svelte' }).code
+
+    expect(reactOut).toContain('dangerouslySetInnerHTML')
+    expect(vueOut).toContain('v-html')
+    expect(svelteOut).toContain('@html')
+
+    for (const out of [reactOut, vueOut, svelteOut]) {
+      expect(out).not.toContain('onerror')
+      expect(out).not.toContain('javascript:alert')
+      expect(out).not.toContain('<script>')
+    }
+  })
+
+  it('escapes Vue expression attributes that contain string literal quotes', () => {
+    const out = compile(
+      [
+        '- pug',
+        'input',
+        '  :',
+        '    value {message ?? "Untitled"}',
+      ].join('\n'),
+      { componentName: 'Test', target: 'vue' },
+    ).code
+
+    expect(out).toContain(':value="message ?? &quot;Untitled&quot;"')
+  })
+})
+
+describe('semantic parity', () => {
+  const featureFixture = [
+    '- props',
+    '  label: string = "Save"',
+    '',
+    '- state',
+    '  count: number = 0',
+    '',
+    '- computed',
+    '  doubled: count * 2',
+    '',
+    '- onMount',
+    '  count += 1',
+    '',
+    '- pug',
+    'Panel',
+    '  slot:header(item)',
+    '    h1 {item.title}',
+    '  button',
+    '    :',
+    '      bind:value count',
+    '    @click.prevent',
+    '      count += 1',
+    '    {label} {doubled}',
+    '  each item, index in items',
+    '    p',
+    '      :',
+    '        key {item.id}',
+    '      {index}: {item.name}',
+  ].join('\n')
+
+  it('covers props, state, events, binds, loops, and slots in React', () => {
+    const out = compile(featureFixture, { componentName: 'Test', target: 'react' }).code
+    expect(out).toContain('label?: string')
+    expect(out).toContain('useState<number>(0)')
+    expect(out).toContain('useMemo(() => count * 2')
+    expect(out).toContain('onClick=')
+    expect(out).toContain('setCount')
+    expect(out).toContain('items.map((item, index)')
+    expect(out).toContain('header={({ item }) =>')
+  })
+
+  it('covers props, state, events, binds, loops, and slots in Vue', () => {
+    const out = compile(featureFixture, { componentName: 'Test', target: 'vue' }).code
+    expect(out).toContain('defineProps')
+    expect(out).toContain('const count = ref<number>(0)')
+    expect(out).toContain('computed(() => count.value * 2)')
+    expect(out).toContain('@click.prevent=')
+    expect(out).toContain('v-model="count.value"')
+    expect(out).toContain('v-for="(item, index) in items"')
+    expect(out).toContain('#header="{ item }"')
+  })
+
+  it('covers props, state, events, binds, loops, and slots in Svelte', () => {
+    const out = compile(featureFixture, { componentName: 'Test', target: 'svelte' }).code
+    expect(out).toContain('export let label: string = "Save";')
+    expect(out).toContain('let count: number = 0;')
+    expect(out).toContain('$: doubled = count * 2;')
+    expect(out).toContain('on:click|preventDefault=')
+    expect(out).toContain('bind:value={count}')
+    expect(out).toContain('{#each items as item, index (item.id)}')
+    expect(out).toContain('let:item')
+  })
 })
 
 // ─── CSS codegen ──────────────────────────────────────────────────────────────
@@ -295,6 +431,45 @@ describe('CSS extraction', () => {
     const first = compile(src, { componentName: 'Test', target: 'react' }).css
     const second = compile(src, { componentName: 'Test', target: 'react' }).css
     expect(first).toBe(second)
+  })
+
+  it('emits atomic CSS utilities when enabled', () => {
+    const src = '- pug\ndiv\n  ::\n    color red\n    padding 1rem'
+    const { code, css } = compile(src, { componentName: 'Test', target: 'react', atomicCss: true })
+    expect(css).toContain('._a_')
+    expect(css).toContain('color: red')
+    expect(css).toContain('padding: 1rem')
+    expect(code).toContain("styles['_a_")
+  })
+})
+
+// ─── MDLoom ───────────────────────────────────────────────────────────────────
+
+describe('MDLoom', () => {
+  const source = [
+    '- pug',
+    'md',
+    '  # Hello',
+    '  This is **strong** and [safe](/docs).',
+  ].join('\n')
+
+  it('renders embedded Markdown in React', () => {
+    const out = compile(source, { componentName: 'Doc', target: 'react' }).code
+    expect(out).toContain('dangerouslySetInnerHTML')
+    expect(out).toContain('<h1>Hello</h1>')
+    expect(out).toContain('<strong>strong</strong>')
+  })
+
+  it('renders embedded Markdown in Vue', () => {
+    const out = compile(source, { componentName: 'Doc', target: 'vue' }).code
+    expect(out).toContain('v-html')
+    expect(out).toContain('&lt;h1&gt;Hello&lt;/h1&gt;')
+  })
+
+  it('renders embedded Markdown in Svelte', () => {
+    const out = compile(source, { componentName: 'Doc', target: 'svelte' }).code
+    expect(out).toContain('@html')
+    expect(out).toContain('<h1>Hello</h1>')
   })
 })
 

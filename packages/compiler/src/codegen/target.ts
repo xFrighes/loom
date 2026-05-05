@@ -32,6 +32,8 @@ export interface TargetGenerateOptions {
    * - Svelte: wraps module context in `<script context="module">` for SvelteKit.
    */
   ssr?: boolean
+  /** Emit one deterministic utility class per style declaration. */
+  atomicCss?: boolean
 }
 
 export interface CodegenTarget {

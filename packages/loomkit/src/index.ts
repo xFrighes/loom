@@ -79,7 +79,7 @@ export function createRouteEntry(file: string, options: {
 
 export function matchRoute(pathname: string, manifest: RouteManifestEntry[]): MatchedRoute | null {
   const urlParts = normalizePath(pathname).split('/').filter(Boolean)
-  for (const entry of manifest) {
+  for (const entry of [...manifest].sort(compareRouteSpecificity)) {
     const params: Record<string, string> = {}
     if (matchSegments(entry.segments, urlParts, params)) {
       return { entry, params }
@@ -101,15 +101,50 @@ function matchSegments(segments: RouteSegment[], parts: string[], params: Record
   for (const segment of segments) {
     const part = parts[index]
     if (segment.kind === 'catchall') {
-      params[segment.name] = parts.slice(index).map(decodeURIComponent).join('/')
+      const decoded = decodeParts(parts.slice(index))
+      if (!decoded) return false
+      params[segment.name] = decoded.join('/')
       return true
     }
     if (part === undefined) return false
     if (segment.kind === 'static' && segment.name !== part) return false
-    if (segment.kind === 'dynamic') params[segment.name] = decodeURIComponent(part)
+    if (segment.kind === 'dynamic') {
+      const decoded = decodePart(part)
+      if (decoded === null) return false
+      params[segment.name] = decoded
+    }
     index += 1
   }
   return index === parts.length
+}
+
+function compareRouteSpecificity(a: RouteManifestEntry, b: RouteManifestEntry): number {
+  const score = (entry: RouteManifestEntry) =>
+    entry.segments.reduce((total, segment) => {
+      if (segment.kind === 'static') return total + 100
+      if (segment.kind === 'dynamic') return total + 10
+      return total
+    }, entry.segments.length)
+
+  return score(b) - score(a)
+}
+
+function decodeParts(parts: string[]): string[] | null {
+  const decoded: string[] = []
+  for (const part of parts) {
+    const value = decodePart(part)
+    if (value === null) return null
+    decoded.push(value)
+  }
+  return decoded
+}
+
+function decodePart(part: string): string | null {
+  try {
+    return decodeURIComponent(part)
+  } catch {
+    return null
+  }
 }
 
 function routePartToPathPart(part: string): string {

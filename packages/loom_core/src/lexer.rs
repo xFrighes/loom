@@ -90,6 +90,7 @@ static BEHAVIOR_RE: OnceLock<Regex> = OnceLock::new();
 static EACH_RE: OnceLock<Regex> = OnceLock::new();
 static SLOT_RE: OnceLock<Regex> = OnceLock::new();
 static TAG_RE: OnceLock<Regex> = OnceLock::new();
+static COMPONENT_RE: OnceLock<Regex> = OnceLock::new();
 
 fn classify_line(trimmed: &str) -> TK {
     if trimmed.starts_with("//") {
@@ -131,7 +132,7 @@ fn classify_line(trimmed: &str) -> TK {
         if first_char.is_uppercase() {
             let selector = trimmed.split_whitespace().next().unwrap_or(trimmed);
             let remainder = trimmed[selector.len()..].trim();
-            let component_re = Regex::new(r"^[A-Z][A-Za-z0-9]*([.#][a-zA-Z0-9_-]*)*$").unwrap();
+            let component_re = COMPONENT_RE.get_or_init(|| Regex::new(r"^[A-Z][A-Za-z0-9]*([.#][a-zA-Z0-9_-]*)*$").unwrap());
             if remainder.is_empty() && component_re.is_match(selector) {
                 return TK::Component;
             }

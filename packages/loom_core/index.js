@@ -310,10 +310,15 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { TK, hashText, indexWorkspace, napiTokenize, napiParse } = nativeBinding
+const { hashText, indexWorkspace, TK, napiTokenize, napiTokenizeJson, napiTokenizeManyJson, napiParse, napiParseJson, napiParseManyJson, napiBridgeStats } = nativeBinding
 
-module.exports.TK = TK
 module.exports.hashText = hashText
 module.exports.indexWorkspace = indexWorkspace
+module.exports.TK = TK
 module.exports.napiTokenize = napiTokenize
+module.exports.napiTokenizeJson = napiTokenizeJson
+module.exports.napiTokenizeManyJson = napiTokenizeManyJson
 module.exports.napiParse = napiParse
+module.exports.napiParseJson = napiParseJson
+module.exports.napiParseManyJson = napiParseManyJson
+module.exports.napiBridgeStats = napiBridgeStats

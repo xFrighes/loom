@@ -38,6 +38,8 @@ export type CompileOptions = {
    * Svelte `<script context="module">`).
    */
   ssr?: boolean
+  /** Optional utility-first CSS generation mode. */
+  atomicCss?: boolean
 }
 
 export type AnalyzeResult = {
@@ -91,6 +93,7 @@ export function compile(src: string, options: CompileOptions): CompileResult {
     sourceFile: options.sourceFile,
     sourceContent: src,
     ssr: options.ssr,
+    atomicCss: options.atomicCss,
   }
 
   switch (options.target) {

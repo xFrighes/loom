@@ -16,9 +16,11 @@ import type {
 } from '../ast.js'
 import type { CodegenTarget, CompileResult, TargetGenerateOptions } from './target.js'
 import type { CompilerDiagnostic } from '../validate.js'
-import { generateCSS, scopeKeyForElement } from './css.js'
+import { generateAtomicCSS, generateCSS, scopeKeyForElement } from './css.js'
 import { warnMissingLoopKey } from './warnings.js'
 import { buildSourceMap, type Mapping } from '../sourcemap.js'
+import { isMarkdownElement, renderMarkdownElement } from './markdown.js'
+import { sanitizeStaticHtml } from './html.js'
 
 export class SvelteTarget implements CodegenTarget {
   generate(file: LoomFile, componentName: string, options: TargetGenerateOptions = {}): CompileResult {
@@ -147,7 +149,10 @@ class SvelteGenContext {
     }
 
     // <style>
-    const allCss = this.cssBlocks.map(b => generateCSS(b.block, b.className).cssText).join('\n\n')
+    const allCss = this.cssBlocks.map(b => {
+      if (this.options.atomicCss) return generateAtomicCSS(b.block, this.componentName, b.scopeKey).cssText
+      return generateCSS(b.block, b.className).cssText
+    }).join('\n\n')
     if (allCss.trim()) {
       push('', '<style>')
       push(allCss)
@@ -163,7 +168,9 @@ class SvelteGenContext {
       if (node.kind === 'element') {
         const key = scopeKeyForElement(node)
         if (node.styles && node.styles.length > 0) {
-          const className = key.replace(/[^a-zA-Z0-9_-]/g, '_')
+          const className = this.options.atomicCss
+            ? generateAtomicCSS(node.styles, this.componentName, key).classNames.join(' ')
+            : key.replace(/[^a-zA-Z0-9_-]/g, '_')
           this.cssBlocks.push({ scopeKey: key, block: node.styles, className })
           this.cssClassMap.set(key, className)
         }
@@ -215,6 +222,10 @@ class SvelteGenContext {
   }
 
   private renderElement(node: ElementNode, indent: string, file: LoomFile): string[] {
+    if (isMarkdownElement(node)) {
+      return [`${indent}<div>{@html ${JSON.stringify(renderMarkdownElement(node))}}</div>`]
+    }
+
     const key = scopeKeyForElement(node)
 
     // Polymorphic
@@ -297,7 +308,7 @@ class SvelteGenContext {
 
   private renderText(node: TextNode, indent: string): string[] {
     if (/<[a-z][\s\S]*?>/i.test(node.value)) {
-      return [`${indent}<span>{@html ${JSON.stringify(node.value)}}</span>`]
+      return [`${indent}<span>{@html ${JSON.stringify(sanitizeStaticHtml(node.value))}}</span>`]
     }
     const interpolated = node.value.replace(/\{([^}]+)\}/g, (_m, expr) => `{${expr}}`)
     return [`${indent}${interpolated}`]
@@ -337,11 +348,7 @@ class SvelteGenContext {
   private renderEach(node: EachNode, indent: string, file: LoomFile): string[] {
     const lines: string[] = []
 
-    let keyExpr = ''
-    if (node.children[0]?.kind === 'element') {
-      const keyAttr = node.children[0].data?.find(d => d.kind === 'dynamic' && d.name === 'key')
-      if (keyAttr?.kind === 'dynamic') keyExpr = keyAttr.expr
-    }
+    const keyExpr = resolveLoopKey(node)
 
     if (!keyExpr) {
       this.warnings.push(...warnMissingLoopKey(node.list, node.span))
@@ -415,6 +422,17 @@ function renderSvelteDataAttr(attr: DataAttr): string {
     case 'bind':
       return `bind:${attr.name}={${attr.expr}}`
   }
+}
+
+function resolveLoopKey(node: EachNode): string {
+  if (node.keyExpr) return node.keyExpr
+
+  if (node.children[0]?.kind === 'element') {
+    const keyAttr = node.children[0].data?.find(d => d.kind === 'dynamic' && d.name === 'key')
+    if (keyAttr?.kind === 'dynamic') return keyAttr.expr
+  }
+
+  return `(typeof ${node.item} === 'object' && ${node.item} !== null ? ${node.item}.id ?? ${node.item}.key : ${node.item})`
 }
 
 function escapeHtmlAttr(str: string): string {

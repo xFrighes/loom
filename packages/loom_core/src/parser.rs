@@ -221,6 +221,7 @@ fn parse_file(s: &mut TokenStream) -> Result<LoomFile, ParseError> {
         s.skip_newlines();
         if s.is(TK::Eof, 0) { break; }
 
+        let last_pos = s.pos;
         if s.is(TK::ContextSwitch, 0) {
             let switch_tok = s.consume();
             let zone_name = switch_tok.value.clone();
@@ -255,6 +256,10 @@ fn parse_file(s: &mut TokenStream) -> Result<LoomFile, ParseError> {
             } else {
                 file.markup = Some(markup);
             }
+        }
+
+        if s.pos == last_pos {
+            s.consume();
         }
     }
 

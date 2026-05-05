@@ -15,6 +15,14 @@ try {
 }
 
 export function tryRustParse(src: string): any {
+  if (rustCore && typeof rustCore.napiParseJson === 'function') {
+    const result = JSON.parse(rustCore.napiParseJson(src))
+    if (result && result.error) {
+      throw new Error(result.error)
+    }
+    return result
+  }
+
   if (rustCore && typeof rustCore.napiParse === 'function') {
     const result = rustCore.napiParse(src)
     if (result && result.error) {
@@ -40,8 +48,25 @@ function normalizeRustResult(obj: any): any {
 }
 
 export function tryRustTokenize(src: string): any {
+  if (rustCore && typeof rustCore.napiTokenizeJson === 'function') {
+    return JSON.parse(rustCore.napiTokenizeJson(src))
+  }
+
   if (rustCore && typeof rustCore.napiTokenize === 'function') {
     return rustCore.napiTokenize(src)
+  }
+  return null
+}
+
+export function tryRustParseMany(sources: string[]): any[] | null {
+  if (rustCore && typeof rustCore.napiParseManyJson === 'function') {
+    return rustCore.napiParseManyJson(sources).map((result: string) => {
+      const parsed = JSON.parse(result)
+      if (parsed && parsed.error) {
+        throw new Error(parsed.error)
+      }
+      return parsed
+    })
   }
   return null
 }

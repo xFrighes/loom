@@ -22,6 +22,8 @@ import type { CompilerDiagnostic } from '../validate.js'
 import { collectComponentCSS, scopeKeyForElement, type DynamicStyleBinding } from './css.js'
 import { warnReactBehavior, warnMissingLoopKey } from './warnings.js'
 import { buildSourceMap, type Mapping } from '../sourcemap.js'
+import { sanitizeStaticHtml } from './html.js'
+import { isMarkdownElement, renderMarkdownElement } from './markdown.js'
 
 // ─── React codegen ────────────────────────────────────────────────────────────
 
@@ -49,7 +51,7 @@ export class ReactTarget implements CodegenTarget {
 
 class ReactGenContext {
   private styleBlocks: Array<{ scopeKey: string; block: StyleBlock }> = []
-  private classMap: Map<string, string> = new Map()
+  private classMap: Map<string, string[]> = new Map()
   private dynamicStyleMap: Map<string, DynamicStyleBinding[]> = new Map()
   cssText = ''
   private hasCSSModules = false
@@ -282,6 +284,7 @@ class ReactGenContext {
     const { cssText, classMap, dynamicStyleMap } = collectComponentCSS(
       this.componentName,
       this.styleBlocks,
+      { atomic: this.options.atomicCss },
     )
     this.cssText = cssText
     this.classMap = classMap
@@ -522,7 +525,17 @@ class ReactGenContext {
     }
   }
 
-  private renderElement(node: ElementNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
+  private renderElement(
+    node: ElementNode,
+    indent: string,
+    file: LoomFile,
+    locals: Set<string>,
+    extraAttrs: string[] = [],
+  ): string[] {
+    if (isMarkdownElement(node)) {
+      return [`${indent}<div dangerouslySetInnerHTML={{ __html: ${JSON.stringify(renderMarkdownElement(node))} }} />`]
+    }
+
     const scopeKey = scopeKeyForElement(node)
 
     // Resolve tag
@@ -539,7 +552,7 @@ class ReactGenContext {
     }
 
     // Build attribute string
-    const attrParts: string[] = []
+    const attrParts: string[] = [...extraAttrs]
 
     // className from classes + CSS Modules
     const classNames = this.buildClassNameAttr(node, scopeKey)
@@ -649,7 +662,7 @@ class ReactGenContext {
     const parts: string[] = []
 
     // CSS Modules scoped classes from :: dimension
-    const moduleClass = this.classMap.get(scopeKey)
+    const moduleClasses = this.classMap.get(scopeKey) ?? []
 
     // Direct class selectors from tag (div.card → "card")
     for (const cls of node.classes) {
@@ -668,7 +681,7 @@ class ReactGenContext {
       }
     }
 
-    if (moduleClass) {
+    for (const moduleClass of moduleClasses) {
       parts.push(`styles['${moduleClass}']`)
     }
 
@@ -697,7 +710,7 @@ class ReactGenContext {
 
   private renderText(node: TextNode, indent: string, _locals: Set<string>): string[] {
     if (/<[a-z][\s\S]*?>/i.test(node.value)) {
-      return [`${indent}<span dangerouslySetInnerHTML={{ __html: ${JSON.stringify(node.value)} }} />`]
+      return [`${indent}<span dangerouslySetInnerHTML={{ __html: ${JSON.stringify(sanitizeStaticHtml(node.value))} }} />`]
     }
     // Plain text — interpolate {} expressions
     const interpolated = escapeTextWithExpressions(node.value, (expr) => `{${expr}}`)
@@ -743,14 +756,7 @@ class ReactGenContext {
   private renderEach(node: EachNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     const lines: string[] = []
 
-    // Extract key from first child's : dimension if available
-    let keyExpr = ''
-    if (node.children[0]?.kind === 'element') {
-      const keyAttr = node.children[0].data?.find((d) => d.kind === 'dynamic' && d.name === 'key')
-      if (keyAttr && keyAttr.kind === 'dynamic') {
-        keyExpr = ` key={${keyAttr.expr}}`
-      }
-    }
+    const keyExpr = resolveLoopKey(node)
 
     if (!keyExpr) {
       this.warnings.push(...warnMissingLoopKey(node.list, node.span))
@@ -765,10 +771,33 @@ class ReactGenContext {
 
     lines.push(`${indent}{${node.list}.map((${node.item}${indexParam}) => (`)
     this.advanceRenderCursor(1)
-    const childLines = this.renderMarkupList(node.children, indent + '  ', file, nextLocals)
+    const childLines = this.renderMarkupListWithKey(node.children, indent + '  ', file, nextLocals, keyExpr)
     lines.push(...childLines)
     lines.push(`${indent}))}`)
 
+    return lines
+  }
+
+  private renderMarkupListWithKey(
+    nodes: MarkupNode[],
+    indent: string,
+    file: LoomFile,
+    locals: Set<string>,
+    keyExpr: string,
+  ): string[] {
+    if (!keyExpr) return this.renderMarkupList(nodes, indent, file, locals)
+    const filtered = nodes.filter((n) => n.kind !== 'comment')
+
+    if (filtered.length === 1 && filtered[0].kind === 'element') {
+      return this.renderElement(filtered[0], indent, file, locals, [`key={${keyExpr}}`])
+    }
+
+    const lines = [`${indent}<React.Fragment key={${keyExpr}}>`]
+    this.advanceRenderCursor(1)
+    for (const child of filtered) {
+      lines.push(...this.renderNode(child, indent + '  ', file, locals))
+    }
+    lines.push(`${indent}</React.Fragment>`)
     return lines
   }
 
@@ -828,6 +857,17 @@ function textToReactExpression(value: string): string {
     .replace(/\$\{/g, '\\${')
     .replace(/\{([^{}]+)\}/g, '${$1}')
   return `\`${template}\``
+}
+
+function resolveLoopKey(node: EachNode): string {
+  if (node.keyExpr) return node.keyExpr
+
+  if (node.children[0]?.kind === 'element') {
+    const keyAttr = node.children[0].data?.find((d) => d.kind === 'dynamic' && d.name === 'key')
+    if (keyAttr?.kind === 'dynamic') return keyAttr.expr
+  }
+
+  return `(typeof ${node.item} === 'object' && ${node.item} !== null ? ${node.item}.id ?? ${node.item}.key : ${node.item})`
 }
 
 // ─── Signature builder ────────────────────────────────────────────────────────

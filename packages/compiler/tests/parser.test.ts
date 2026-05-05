@@ -151,6 +151,11 @@ describe('parser – control flow', () => {
     if (node.kind !== 'each') throw new Error()
     expect(node.index).toBe('i')
   })
+
+  it('parses explicit each loop keys', () => {
+    const node = parse('- pug\neach user in users by user.id\n  p {user.name}').markup![0]
+    expect(node).toMatchObject({ kind: 'each', list: 'users', keyExpr: 'user.id' })
+  })
 })
 
 describe('parser – slots', () => {

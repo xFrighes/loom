@@ -804,7 +804,7 @@ function parseEach(s: TokenStream): EachNode {
 
   const item = m[1]
   const index = m[2]
-  const list = m[3].trim()
+  const { list, keyExpr } = splitEachListAndKey(m[3].trim())
 
   s.skipNewlines()
   let children: MarkupNode[] = []
@@ -819,9 +819,18 @@ function parseEach(s: TokenStream): EachNode {
     item,
     index,
     list,
+    keyExpr,
     children,
     span: mergeSpans(tok.span, spanFromNodes(children)),
   }
+}
+
+function splitEachListAndKey(raw: string): { list: string; keyExpr?: string } {
+  const keyMatch = raw.match(/^([\s\S]+?)\s+(?:by|key)\s+([\s\S]+)$/)
+  if (!keyMatch) return { list: raw }
+
+  const keyExpr = unwrapBalancedBraces(keyMatch[2].trim()) ?? keyMatch[2].trim()
+  return { list: keyMatch[1].trim(), keyExpr }
 }
 
 // ─── Slot parser ──────────────────────────────────────────────────────────────

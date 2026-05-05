@@ -124,19 +124,30 @@ function expandNested(
 export function collectComponentCSS(
   componentName: string,
   styleBlocks: Array<{ scopeKey: string; block: StyleBlock }>,
+  options: { atomic?: boolean } = {},
 ): {
   cssText: string
-  classMap: Map<string, string>
+  classMap: Map<string, string[]>
   dynamicStyleMap: Map<string, DynamicStyleBinding[]>
 } {
-  const classMap = new Map<string, string>()
+  const classMap = new Map<string, string[]>()
   const dynamicStyleMap = new Map<string, DynamicStyleBinding[]>()
   const parts: string[] = []
 
   for (const { scopeKey, block } of styleBlocks) {
+    if (options.atomic) {
+      const atomic = generateAtomicCSS(block, componentName, scopeKey)
+      classMap.set(scopeKey, atomic.classNames)
+      if (atomic.cssText.trim()) parts.push(atomic.cssText)
+      if (atomic.dynamicBindings.length > 0) {
+        dynamicStyleMap.set(scopeKey, atomic.dynamicBindings)
+      }
+      continue
+    }
+
     const hash = hashString(`${componentName}-${scopeKey}`)
     const className = `_${scopeKey.replace(/[^a-zA-Z0-9]/g, '_')}_${hash}`
-    classMap.set(scopeKey, className)
+    classMap.set(scopeKey, [className])
     const { cssText, dynamicBindings } = generateCSS(block, className)
     if (cssText.trim()) parts.push(cssText)
     if (dynamicBindings.length > 0) {
@@ -145,6 +156,60 @@ export function collectComponentCSS(
   }
 
   return { cssText: parts.join('\n\n'), classMap, dynamicStyleMap }
+}
+
+export function generateAtomicCSS(
+  block: StyleBlock,
+  componentName: string,
+  scopeKey: string,
+): { cssText: string; classNames: string[]; dynamicBindings: DynamicStyleBinding[] } {
+  const classNames: string[] = []
+  const dynamicBindings: DynamicStyleBinding[] = []
+  const parts: string[] = []
+  collectAtomicRules(block, '', componentName, scopeKey, classNames, parts, dynamicBindings)
+  return { cssText: parts.join('\n\n'), classNames, dynamicBindings }
+}
+
+function collectAtomicRules(
+  rules: StyleRule[],
+  selectorSuffix: string,
+  componentName: string,
+  scopeKey: string,
+  classNames: string[],
+  out: string[],
+  dynamicBindings: DynamicStyleBinding[],
+) {
+  for (const rule of rules) {
+    if (rule.kind === 'decl') {
+      const hash = hashString(`${componentName}-${scopeKey}-${selectorSuffix}-${rule.prop}-${rule.value}`)
+      const className = `_a_${hash}`
+      classNames.push(className)
+      const { value, bindings } = processDynamicValue(rule.prop, rule.value)
+      dynamicBindings.push(...bindings)
+      out.push(`.${className}${selectorSuffix} {\n  ${rule.prop}: ${value};\n}`)
+      continue
+    }
+
+    const selector = atomicSelectorSuffix(rule.selector)
+    if (selector.kind === 'at-rule') {
+      const inner: string[] = []
+      collectAtomicRules(rule.rules, selectorSuffix, componentName, scopeKey, classNames, inner, dynamicBindings)
+      if (inner.length > 0) out.push(`${rule.selector} {\n${inner.map((line) => `  ${line.replace(/\n/g, '\n  ')}`).join('\n\n')}\n}`)
+    } else {
+      collectAtomicRules(rule.rules, selectorSuffix + selector.suffix, componentName, scopeKey, classNames, out, dynamicBindings)
+    }
+  }
+}
+
+function atomicSelectorSuffix(selector: string): { kind: 'selector'; suffix: string } | { kind: 'at-rule' } {
+  if (selector.startsWith('@')) return { kind: 'at-rule' }
+  if (selector.startsWith(':global(')) {
+    const match = selector.match(/^:global\((.+)\)(\s+&)?$/)
+    if (!match) return { kind: 'selector', suffix: '' }
+    return { kind: 'selector', suffix: match[2] ? '' : ` ${match[1]}` }
+  }
+  if (selector.includes('&')) return { kind: 'selector', suffix: selector.replace(/&/g, '') }
+  return { kind: 'selector', suffix: ` ${selector}` }
 }
 
 export function scopeKeyForElement(node: {

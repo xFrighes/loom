@@ -12,6 +12,34 @@ export interface SourceSpan {
   start: SourcePosition
   end: SourcePosition
 }
+export interface TokenEstimates {
+  source: number
+  outline: number
+  edit: number
+}
+export interface IndexManifestEntry {
+  sourcePath: string
+  sourceHash: string
+  cacheFile: string
+  language: string
+  tokenEstimates: TokenEstimates
+  diagnostics: number
+  generatedAt: string
+}
+export interface IndexManifest {
+  version: number
+  root: string
+  generatedAt: string
+  files: Array<IndexManifestEntry>
+}
+export interface IndexerResult {
+  manifest: IndexManifest
+  indexed: number
+  reused: number
+  removed: number
+}
+export declare function hashText(text: string): string
+export declare function indexWorkspace(root: string, cacheDir?: string | undefined | null, inputs?: Array<string> | undefined | null): IndexerResult
 export const enum TK {
   ContextSwitch = 0,
   Indent = 1,
@@ -49,33 +77,15 @@ export interface LexerResult {
   tokens: Array<Token>
   errors: Array<LexError>
 }
-export interface TokenEstimates {
-  source: number
-  outline: number
-  edit: number
+export interface BridgeStats {
+  sourceBytes: number
+  tokenCount: number
+  astJsonBytes: number
 }
-export interface IndexManifestEntry {
-  sourcePath: string
-  sourceHash: string
-  cacheFile: string
-  language: string
-  tokenEstimates: TokenEstimates
-  diagnostics: number
-  generatedAt: string
-}
-export interface IndexManifest {
-  version: number
-  root: string
-  generatedAt: string
-  files: Array<IndexManifestEntry>
-}
-export interface IndexerResult {
-  manifest: IndexManifest
-  indexed: number
-  reused: number
-  removed: number
-}
-export declare function hashText(text: string): string
-export declare function indexWorkspace(root: string, cacheDir?: string | undefined | null, inputs?: Array<string> | undefined | null): IndexerResult
 export declare function napiTokenize(src: string): LexerResult
+export declare function napiTokenizeJson(src: string): string
+export declare function napiTokenizeManyJson(inputs: Array<string>): Array<string>
 export declare function napiParse(src: string): any
+export declare function napiParseJson(src: string): string
+export declare function napiParseManyJson(inputs: Array<string>): Array<string>
+export declare function napiBridgeStats(src: string): BridgeStats

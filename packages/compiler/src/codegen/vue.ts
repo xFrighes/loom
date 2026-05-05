@@ -20,6 +20,8 @@ import type { CompilerDiagnostic } from '../validate.js'
 import { collectComponentCSS, scopeKeyForElement, type DynamicStyleBinding } from './css.js'
 import { warnMissingLoopKey } from './warnings.js'
 import { buildSourceMap, type Mapping } from '../sourcemap.js'
+import { isMarkdownElement, renderMarkdownElement } from './markdown.js'
+import { sanitizeStaticHtml } from './html.js'
 
 export class VueTarget implements CodegenTarget {
   generate(file: LoomFile, componentName: string, options: TargetGenerateOptions = {}): CompileResult {
@@ -34,7 +36,7 @@ export class VueTarget implements CodegenTarget {
 
 class VueGenContext {
   private styleBlocks: Array<{ scopeKey: string; block: StyleBlock }> = []
-  private classMap: Map<string, string> = new Map()
+  private classMap: Map<string, string[]> = new Map()
   private dynamicStyleMap: Map<string, DynamicStyleBinding[]> = new Map()
   cssText = ''
   readonly warnings: CompilerDiagnostic[] = []
@@ -48,6 +50,7 @@ class VueGenContext {
     const { cssText, classMap, dynamicStyleMap } = collectComponentCSS(
       this.componentName,
       this.styleBlocks,
+      { atomic: this.options.atomicCss },
     )
     this.cssText = cssText
     this.classMap = classMap
@@ -217,6 +220,10 @@ class VueGenContext {
   }
 
   private renderElement(node: ElementNode, indent: string, file: LoomFile, locals: Set<string>, extraAttrs: string[] = []): string[] {
+    if (isMarkdownElement(node)) {
+      return [`${indent}<div v-html="${escapeVueAttrExpr(JSON.stringify(renderMarkdownElement(node)))}" />`]
+    }
+
     const scopeKey = scopeKeyForElement(node)
 
     let tag = node.tag
@@ -231,7 +238,7 @@ class VueGenContext {
 
     // :is for polymorphic
     if (tag === 'component' && asAttr?.kind === 'as') {
-      attrs.push(`:is="${asAttr.expr}"`)
+      attrs.push(`:is="${escapeVueAttrExpr(asAttr.expr)}"`)
     }
 
     // class/style
@@ -311,18 +318,18 @@ class VueGenContext {
   }
 
   private buildClassAttr(node: ElementNode, scopeKey: string): string {
-    const moduleClass = this.classMap.get(scopeKey)
+    const moduleClasses = this.classMap.get(scopeKey) ?? []
     const parts: string[] = []
-    if (moduleClass) {
+    for (const moduleClass of moduleClasses) {
       parts.push(`$style['${moduleClass}']`)
     }
 
-    if (node.classes.length > 0 && !moduleClass) {
+    if (node.classes.length > 0 && moduleClasses.length === 0) {
       return `class="${node.classes.join(' ')}"`
     }
 
-    if (node.classes.length > 0 && moduleClass) {
-      return `:class="['${node.classes.join(' ')}', ${parts[0]}]"`
+    if (node.classes.length > 0 && moduleClasses.length > 0) {
+      return `:class="['${node.classes.join(' ')}', ${parts.join(', ')}]"`
     }
 
     if (parts.length === 0) return ''
@@ -335,12 +342,12 @@ class VueGenContext {
     if (!bindings || bindings.length === 0) return ''
 
     const objectEntries = bindings.map((binding) => `'${binding.cssVar}': ${binding.expr}`)
-    return `:style="{ ${objectEntries.join(', ')} }"`
+    return `:style="${escapeVueAttrExpr(`{ ${objectEntries.join(', ')} }`)}"`
   }
 
   private renderText(node: TextNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     if (/<[a-z][\s\S]*?>/i.test(node.value)) {
-      return [`${indent}<span v-html="${escapeHtmlAttr(JSON.stringify(node.value))}" />`]
+      return [`${indent}<span v-html="${escapeHtmlAttr(JSON.stringify(sanitizeStaticHtml(node.value)))}" />`]
     }
     const interpolated = node.value.replace(/\{([^}]+)\}/g, (_m, expr) => `{{ ${transformVueLogic(expr, file, locals)} }}`)
     return [`${indent}${interpolated}`]
@@ -349,7 +356,7 @@ class VueGenContext {
   private renderIf(node: IfNode | ElseIfNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     const lines: string[] = []
     const directive = node.kind === 'if' ? 'v-if' : 'v-else-if'
-    const condition = transformVueLogic(node.condition, file, locals)
+    const condition = escapeVueAttrExpr(transformVueLogic(node.condition, file, locals))
 
     if (node.consequent.length === 1) {
       // Attach directive directly to element if single child
@@ -404,21 +411,16 @@ class VueGenContext {
   private renderEach(node: EachNode, indent: string, file: LoomFile, locals: Set<string>): string[] {
     const lines: string[] = []
 
-    // Extract key from first child
-    let keyExpr = ''
-    if (node.children[0]?.kind === 'element') {
-      const keyAttr = node.children[0].data?.find(d => d.kind === 'dynamic' && d.name === 'key')
-      if (keyAttr?.kind === 'dynamic') keyExpr = transformVueLogic(keyAttr.expr, file, locals)
-    }
+    const keyExpr = resolveLoopKey(node, file, locals)
 
     if (!keyExpr) {
       this.warnings.push(...warnMissingLoopKey(node.list, node.span))
     }
 
     const indexPart = node.index ? `, ${node.index}` : ''
-    const list = transformVueLogic(node.list, file, locals)
+    const list = escapeVueAttrExpr(transformVueLogic(node.list, file, locals))
     const extraAttrs = [`v-for="(${node.item}${indexPart}) in ${list}"`]
-    if (keyExpr) extraAttrs.push(`:key="${keyExpr}"`)
+    if (keyExpr) extraAttrs.push(`:key="${escapeVueAttrExpr(keyExpr)}"`)
 
     const nextLocals = new Set(locals)
     nextLocals.add(node.item)
@@ -441,7 +443,7 @@ class VueGenContext {
     if (node.name) {
       if (node.params && node.params.length > 0) {
         // Scoped slot: expose params as slot props
-        const slotAttrs = node.params.map((p) => `:${p}="${p}"`).join(' ')
+        const slotAttrs = node.params.map((p) => `:${p}="${escapeVueAttrExpr(p)}"`).join(' ')
         return [`${indent}<slot name="${node.name}" ${slotAttrs} />`]
       }
       return [`${indent}<slot name="${node.name}" />`]
@@ -459,12 +461,12 @@ class VueGenContext {
     const fullBody = beh.body.map((s) => s.src).join('\n')
     const transformed = transformVueLogic(fullBody, file, locals)
     const bodyLines = transformed.split('\n').filter((l) => l.trim())
-    const handler =
+    const rawHandler =
       bodyLines.length === 1
-        ? `"${bodyLines[0].trim()}"`
-        : `"() => { ${bodyLines.map((l) => l.trim()).join('; ')} }"`
+        ? bodyLines[0].trim()
+        : `() => { ${bodyLines.map((l) => l.trim()).join('; ')} }`
 
-    return `@${event}${modifierStr}=${handler}`
+    return `@${event}${modifierStr}="${escapeVueAttrExpr(rawHandler)}"`
   }
 }
 
@@ -555,19 +557,23 @@ function renderVueDataAttr(attr: DataAttr, file: LoomFile, locals: Set<string>):
       if (attr.value === '') return attr.name
       return `${attr.name}="${escapeHtmlAttr(attr.value)}"`
     case 'dynamic':
-      return `:${attr.name}="${transformVueLogic(attr.expr, file, locals)}"`
+      return `:${attr.name}="${escapeVueAttrExpr(transformVueLogic(attr.expr, file, locals))}"`
     case 'spread':
-      return `v-bind="${transformVueLogic(attr.expr, file, locals)}"`
+      return `v-bind="${escapeVueAttrExpr(transformVueLogic(attr.expr, file, locals))}"`
     case 'as':
       return ''
     case 'bind': {
       const expr = transformVueLogic(attr.expr, file, locals)
       // Use v-model:name for named binding; v-model for "value" (common convention)
       return attr.name === 'value' || attr.name === 'modelValue'
-        ? `v-model="${expr}"`
-        : `v-model:${attr.name}="${expr}"`
+        ? `v-model="${escapeVueAttrExpr(expr)}"`
+        : `v-model:${attr.name}="${escapeVueAttrExpr(expr)}"`
     }
   }
+}
+
+function escapeVueAttrExpr(str: string): string {
+  return escapeHtmlAttr(str)
 }
 
 function escapeHtmlAttr(str: string): string {
@@ -577,6 +583,17 @@ function escapeHtmlAttr(str: string): string {
     .replace(/'/g, '&#39;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+}
+
+function resolveLoopKey(node: EachNode, file: LoomFile, locals: Set<string>): string {
+  if (node.keyExpr) return transformVueLogic(node.keyExpr, file, locals)
+
+  if (node.children[0]?.kind === 'element') {
+    const keyAttr = node.children[0].data?.find(d => d.kind === 'dynamic' && d.name === 'key')
+    if (keyAttr?.kind === 'dynamic') return transformVueLogic(keyAttr.expr, file, locals)
+  }
+
+  return `(typeof ${node.item} === 'object' && ${node.item} !== null ? ${node.item}.id ?? ${node.item}.key : ${node.item})`
 }
 
 function getTagName(tag: string): string {

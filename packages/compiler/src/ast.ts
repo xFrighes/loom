@@ -157,6 +157,7 @@ export type EachNode = {
   item: string
   index?: string
   list: string
+  keyExpr?: string
   children: MarkupNode[]
 }
 
