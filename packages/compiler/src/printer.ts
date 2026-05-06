@@ -37,6 +37,25 @@ export function printLoom(file: LoomFile): string {
     sections.push(`- generics\n  ${file.generics.trim()}`)
   }
 
+  if (file.meta && file.meta.length > 0) {
+    sections.push(`- meta\n${file.meta.map((entry) => `  ${entry.key}: ${entry.value}`).join('\n')}`)
+  }
+
+  if (file.schema?.src.trim()) {
+    sections.push(`- schema\n${reindentLogicBlock(file.schema.src)}`)
+  }
+
+  if (file.server?.src.trim()) {
+    sections.push(`- server\n${reindentLogicBlock(file.server.src)}`)
+  }
+
+  if (file.tokens && file.tokens.entries.length > 0) {
+    sections.push(`- tokens\n${file.tokens.entries.map((entry) => {
+      const prefix = entry.theme ? `theme.${entry.theme}.` : ''
+      return `  ${prefix}${entry.path.join('.')}: ${entry.value}`
+    }).join('\n')}`)
+  }
+
   if (file.props && file.props.length > 0) {
     const propLines = file.props.map(printProp)
     sections.push(`- props\n${propLines.join('\n')}`)

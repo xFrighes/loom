@@ -99,6 +99,13 @@ export const runCli = (argv: string[], io: CliIo = defaultIo(), options: CliOpti
             JSON.stringify({
               code: result.code,
               css: result.css || null,
+              cssAssets: result.cssAssets ?? [],
+              assets: result.assets ?? [],
+              i18n: result.i18n ?? null,
+              meta: result.meta ?? null,
+              schema: result.schema ?? null,
+              server: result.server ?? null,
+              tokens: result.tokens ?? null,
               map: result.map ?? null,
               warnings: result.warnings ?? [],
             }) + '\n',

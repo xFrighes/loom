@@ -4,7 +4,7 @@ const isFast = process.argv.includes('--fast')
 
 const steps = [
   ['Workspace typecheck', ['bun', 'run', '--filter', '*', 'typecheck']],
-  ['Workspace test', ['bun', 'run', '--filter', '*', 'test']],
+  ['Workspace test', ['bun', 'run', '--filter', '*', '--sequential', 'test']],
   ['Workspace build', ['bun', 'run', '--filter', isFast ? '!*demo' : '*', 'build']],
 ]
 

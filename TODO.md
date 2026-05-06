@@ -46,14 +46,14 @@ Goal: Production-grade stability and ecosystem maturity.
 - [x] **Atomic CSS:** Optional mode for utility-first CSS generation.
 - [x] **Enhanced Keying:** Improved reconciliation strategy for complex loops.
 - [x] **MDLoom:** Native support for Markdown embedding within Loom components.
-- [ ] **Meta Zone:** Add `- meta` for title, SEO, OpenGraph, and framework-specific head output.
-- [ ] **Schema Zone:** Add `- schema` for runtime prop/data validation through adapters such as Zod or Valibot.
-- [ ] **i18n Dimension:** Add a translation-key dimension with extraction tooling and missing-key diagnostics.
-- [ ] **Server Zone:** Add `- server`/server-action primitives for LoomKit and React Server Component experiments.
-- [ ] **Directive API:** Define a conservative plugin API for syntax extensions such as lazy rendering, auth gates, and target-specific transforms.
-- [ ] **Static CSS Extraction:** Extract all static `::` styles into CSS assets with source maps and target-specific imports.
-- [ ] **Design Token Pipeline:** Support project-level tokens and generated CSS variables for themes, variants, and dark mode.
-- [ ] **Asset Optimization:** Optimize images, fonts, and SVG assets referenced from Loom styles or markup during builds.
+- [x] **Meta Zone:** Add `- meta` for title, SEO, OpenGraph, and framework-specific head output.
+- [x] **Schema Zone:** Add `- schema` for runtime prop/data validation through adapters such as Zod or Valibot.
+- [x] **i18n Dimension:** Add a translation-key dimension with extraction tooling and missing-key diagnostics.
+- [x] **Server Zone:** Add `- server`/server-action primitives for LoomKit and React Server Component experiments.
+- [x] **Directive API:** Define a conservative plugin API for syntax extensions such as lazy rendering, auth gates, and target-specific transforms.
+- [x] **Static CSS Extraction:** Extract all static `::` styles into CSS assets with source maps and target-specific imports.
+- [x] **Design Token Pipeline:** Support project-level tokens and generated CSS variables for themes, variants, and dark mode.
+- [x] **Asset Optimization:** Optimize images, fonts, and SVG assets referenced from Loom styles or markup during builds.
 
 ---
 
@@ -62,10 +62,10 @@ Goal: Production-grade stability and ecosystem maturity.
 | Package | Purpose | Status |
 |:---|:---|:---|
 | `@loom-lang/compiler` | Core TS/Rust compiler | Stable |
-| `loom_core` | Rust-based lexer, parser, and indexer | Integrated |
+| `loom_core` | Rust-based lexer, parser, and indexer | Stable |
 | `vite-plugin-loom` | Primary bundler integration | Stable |
-| `loomkit` | Meta-framework primitives (Routing/SSR) | Alpha |
-| `loom-devtools` | Unified debugging runtime hooks | Alpha |
+| `@loom-lang/kit` | Meta-framework primitives (Routing/SSR) | Stable |
+| `@loom-lang/devtools` | Unified debugging runtime hooks | Stable |
 | `loom-llm` | Token-optimized projection for AI | Stable |
 | `loom-testing` | Framework-agnostic test helpers | Stable |
 | `eslint-plugin-loom` | Linting & static analysis | Stable |
@@ -76,7 +76,7 @@ Goal: Production-grade stability and ecosystem maturity.
 | `esbuild-plugin-loom` | esbuild integration | Stable |
 | `rspack-plugin-loom` | Rspack integration | Stable |
 | `webpack-loader-loom` | Webpack integration | Stable |
-| `@loom-lang/ui` | Headless UI primitives | Alpha |
+| `@loom-lang/ui` | Headless UI primitives | Stable |
 
 ---
 

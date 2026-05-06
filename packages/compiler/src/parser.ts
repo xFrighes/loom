@@ -7,6 +7,8 @@ import type {
   StateDecl,
   ComputedDecl,
   LogicStatement,
+  MetaEntry,
+  SchemaDecl,
   MarkupNode,
   ElementNode,
   DataAttr,
@@ -162,6 +164,36 @@ function parseFile(s: TokenStream): LoomFile {
     file.span = mergeSpans(file.span, mergeSpans(...genericsTokens.map((token) => token.span)))
   }
 
+  if (rawZones.has('meta')) {
+    file.meta = parseKeyValueZone(rawZones.get('meta')!)
+  }
+
+  if (rawZones.has('schema')) {
+    const tokens = trimTrailingBlankTokens(rawZones.get('schema')!)
+    file.schema = {
+      src: joinRawZone(tokens),
+      span: mergeSpans(...tokens.map((token) => token.span)),
+      declarations: parseSchemaZone(tokens),
+    }
+  }
+
+  if (rawZones.has('server')) {
+    const tokens = trimTrailingBlankTokens(rawZones.get('server')!)
+    file.server = {
+      src: joinRawZone(tokens),
+      span: mergeSpans(...tokens.map((token) => token.span)),
+      statements: parseLogicStatements(tokens),
+    }
+  }
+
+  if (rawZones.has('tokens')) {
+    const tokens = trimTrailingBlankTokens(rawZones.get('tokens')!)
+    file.tokens = {
+      span: mergeSpans(...tokens.map((token) => token.span)),
+      entries: parseTokensZone(tokens),
+    }
+  }
+
   if (rawZones.has('props')) {
     file.props = parsePropsZone(rawZones.get('props')!)
   }
@@ -209,6 +241,10 @@ function parseFile(s: TokenStream): LoomFile {
     spanFromNodes(file.props ?? []),
     spanFromNodes(file.state ?? []),
     spanFromNodes(file.computed ?? []),
+    spanFromNodes(file.meta ?? []),
+    file.schema?.span,
+    file.server?.span,
+    file.tokens?.span,
     file.logic?.span,
     spanFromNodes(file.markup ?? []),
   )
@@ -224,6 +260,77 @@ function trimTrailingBlankTokens(lines: Token[]): Token[] {
 
 function joinRawZone(lines: Token[]): string {
   return lines.map((line) => line.value).join('\n')
+}
+
+function parseKeyValueZone(lines: Token[]): MetaEntry[] {
+  const entries: MetaEntry[] = []
+  for (const line of lines) {
+    const trimmed = line.value.trim()
+    if (!trimmed || trimmed.startsWith('//')) continue
+    const splitIdx = findZoneDelimiter(trimmed)
+    if (splitIdx === -1) {
+      entries.push({ span: line.span, key: trimmed, value: 'true' })
+      continue
+    }
+    entries.push({
+      span: line.span,
+      key: trimmed.slice(0, splitIdx).trim(),
+      value: stripOptionalQuotes(trimmed.slice(splitIdx + 1).trim()),
+    })
+  }
+  return entries
+}
+
+function parseSchemaZone(lines: Token[]): SchemaDecl[] {
+  const declarations: SchemaDecl[] = []
+  for (const line of lines) {
+    const trimmed = line.value.trim()
+    if (!trimmed || trimmed.startsWith('//')) continue
+    const eqIdx = findTopLevelEquals(trimmed)
+    const colonIdx = findTopLevelColon(trimmed)
+    const splitIdx = eqIdx !== -1 ? eqIdx : colonIdx
+    if (splitIdx === -1) continue
+    declarations.push({
+      span: line.span,
+      name: trimmed.slice(0, splitIdx).trim(),
+      expr: trimmed.slice(splitIdx + 1).trim(),
+    })
+  }
+  return declarations
+}
+
+function parseTokensZone(lines: Token[]) {
+  const entries = []
+  for (const line of lines) {
+    const trimmed = line.value.trim()
+    if (!trimmed || trimmed.startsWith('//')) continue
+    const splitIdx = findZoneDelimiter(trimmed)
+    if (splitIdx === -1) continue
+    const rawPath = trimmed.slice(0, splitIdx).trim()
+    const value = stripOptionalQuotes(trimmed.slice(splitIdx + 1).trim())
+    const segments = rawPath.split('.').map((part) => part.trim()).filter(Boolean)
+    const theme = segments[0] === 'theme' || segments[0] === 'themes' ? segments[1] : undefined
+    const path = theme ? segments.slice(2) : segments
+    if (path.length > 0) entries.push({ span: line.span, path, value, theme })
+  }
+  return entries
+}
+
+function stripOptionalQuotes(value: string): string {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1)
+  }
+  return value
+}
+
+function findZoneDelimiter(line: string): number {
+  const spaced = line.search(/[:=]\s/)
+  if (spaced !== -1) return spaced
+  const colonIdx = findTopLevelColon(line)
+  const eqIdx = findTopLevelEquals(line)
+  if (colonIdx === -1) return eqIdx
+  if (eqIdx === -1) return colonIdx
+  return Math.min(colonIdx, eqIdx)
 }
 
 // ─── Props zone parser ────────────────────────────────────────────────────────

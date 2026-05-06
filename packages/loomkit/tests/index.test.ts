@@ -5,6 +5,7 @@ describe('@loom-lang/kit', () => {
   it('derives paths from route files', () => {
     expect(routePathFromFile('src/routes/page.loom')).toBe('/')
     expect(routePathFromFile('src/routes/blog/[slug]/page.loom')).toBe('/blog/[slug]')
+    expect(routePathFromFile('src/routes/(marketing)/pricing/page.loom')).toBe('/pricing')
   })
 
   it('matches dynamic routes', () => {
@@ -28,6 +29,13 @@ describe('@loom-lang/kit', () => {
 
     expect(matchRoute('/blog/hello%20world', [entry])?.params.slug).toBe('hello world')
     expect(matchRoute('/blog/%E0%A4%A', [entry])).toBeNull()
+  })
+
+  it('matches catchall routes and decodes joined params', () => {
+    const entry = createRouteEntry('src/routes/docs/[...slug]/page.loom')
+
+    expect(matchRoute('/docs/guides/getting-started', [entry])?.params.slug).toBe('guides/getting-started')
+    expect(matchRoute('/docs/guides%20and%20api', [entry])?.params.slug).toBe('guides and api')
   })
 
   it('parses static, dynamic, and catchall route segments', () => {

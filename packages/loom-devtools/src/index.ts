@@ -34,14 +34,14 @@ export type LoomDevtoolsHook = {
   unregister(id: string): void
 }
 
-type HookWindow = Window & {
+export type LoomDevtoolsTarget = {
+  postMessage?: (message: unknown, targetOrigin: string) => void
   [LOOM_DEVTOOLS_HOOK]?: LoomDevtoolsHook
 }
 
-export function installLoomDevtoolsHook(target: Window = globalThis.window): LoomDevtoolsHook {
-  const hookTarget = target as HookWindow
-  if (hookTarget[LOOM_DEVTOOLS_HOOK]) {
-    return hookTarget[LOOM_DEVTOOLS_HOOK]
+export function installLoomDevtoolsHook(target: LoomDevtoolsTarget = resolveDefaultTarget()): LoomDevtoolsHook {
+  if (target[LOOM_DEVTOOLS_HOOK]) {
+    return target[LOOM_DEVTOOLS_HOOK]
   }
 
   const listeners = new Set<(event: LoomDevtoolsEvent) => void>()
@@ -70,10 +70,17 @@ export function installLoomDevtoolsHook(target: Window = globalThis.window): Loo
     },
   }
 
-  hookTarget[LOOM_DEVTOOLS_HOOK] = hook
+  target[LOOM_DEVTOOLS_HOOK] = hook
   return hook
 }
 
-export function getLoomDevtoolsHook(target: Window = globalThis.window): LoomDevtoolsHook | undefined {
-  return (target as HookWindow)[LOOM_DEVTOOLS_HOOK]
+export function getLoomDevtoolsHook(target: LoomDevtoolsTarget = resolveDefaultTarget()): LoomDevtoolsHook | undefined {
+  return target[LOOM_DEVTOOLS_HOOK]
+}
+
+function resolveDefaultTarget(): LoomDevtoolsTarget {
+  if (typeof globalThis.window === 'object' && globalThis.window) {
+    return globalThis.window as LoomDevtoolsTarget
+  }
+  return globalThis as unknown as LoomDevtoolsTarget
 }

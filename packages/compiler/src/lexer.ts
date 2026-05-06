@@ -39,6 +39,10 @@ const CONTEXT_SWITCH_NAMES = new Set([
   'props',
   'state',
   'computed',
+  'meta',
+  'schema',
+  'server',
+  'tokens',
   'onMount',
   'onUpdate',
   'onUnmount',
@@ -77,7 +81,7 @@ function stripIndent(line: string, amount: number): string {
 /** Classify a trimmed non-empty line into its token type */
 function classifyLine(trimmed: string): TK {
   // Context switch
-  if (/^- (generics|props|state|computed|onMount|onUpdate|onUnmount|ts|js|pug)(\s|$)/.test(trimmed))
+  if (/^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|pug)(\s|$)/.test(trimmed))
     return TK.CONTEXT_SWITCH
   // Comments
   if (trimmed.startsWith('//')) return TK.COMMENT
@@ -180,7 +184,7 @@ export function tokenize(src: string): LexerResult {
     const trimmed = rawLine.trim()
 
     // ── Context switch detection (col 0) ──────────────────────────────────────
-    const ctxMatch = trimmed.match(/^- (generics|props|state|computed|onMount|onUpdate|onUnmount|ts|js|pug)(.*)$/)
+    const ctxMatch = trimmed.match(/^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|pug)(.*)$/)
     if (ctxMatch && indent === 0) {
       // Flush any remaining dedents back to 0
       while (indentStack.length > 1) {

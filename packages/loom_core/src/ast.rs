@@ -21,6 +21,10 @@ pub struct SourceSpan {
 pub struct LoomFile {
     pub span: Option<SourceSpan>,
     pub generics: Option<String>,
+    pub meta: Option<Vec<MetaEntry>>,
+    pub schema: Option<SchemaZone>,
+    pub server: Option<ServerZone>,
+    pub tokens: Option<TokenZone>,
     pub props: Option<Vec<PropDecl>>,
     pub state: Option<Vec<StateDecl>>,
     pub computed: Option<Vec<ComputedDecl>>,
@@ -29,6 +33,54 @@ pub struct LoomFile {
     pub on_unmount: Option<Vec<LogicStatement>>,
     pub logic: Option<LogicZone>,
     pub markup: Option<Vec<MarkupNode>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MetaEntry {
+    pub span: Option<SourceSpan>,
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaZone {
+    pub span: Option<SourceSpan>,
+    pub src: String,
+    pub declarations: Vec<SchemaDecl>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaDecl {
+    pub span: Option<SourceSpan>,
+    pub name: String,
+    pub expr: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerZone {
+    pub span: Option<SourceSpan>,
+    pub src: String,
+    pub statements: Vec<LogicStatement>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenZone {
+    pub span: Option<SourceSpan>,
+    pub entries: Vec<DesignTokenEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesignTokenEntry {
+    pub span: Option<SourceSpan>,
+    pub path: Vec<String>,
+    pub value: String,
+    pub theme: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

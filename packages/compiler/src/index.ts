@@ -40,6 +40,20 @@ import type { CompileResult } from './codegen/target.js'
 import type { LoomFile } from './ast.js'
 import { hasErrors, validate, type CompilerDiagnostic, type ValidateOptions } from './validate.js'
 import { formatLoom } from './printer.js'
+import {
+  applyDirectiveTransforms,
+  finalizeAdvancedResult,
+  type AdvancedCompileOptions,
+} from './advanced.js'
+export type {
+  AdvancedCompileOptions,
+  AssetMetadata,
+  CssAsset,
+  DirectiveContext,
+  DirectivePlugin,
+  I18nKeyManifest,
+  SchemaAdapter,
+} from './advanced.js'
 export type CompileOptions = {
   /** Name of the component (used for CSS class hashing and function name) */
   componentName: string
@@ -65,7 +79,7 @@ export type CompileOptions = {
   security?: boolean
   /** Warn when generated target output exceeds this many bytes. */
   bundleBudgetBytes?: number
-}
+} & AdvancedCompileOptions
 
 export type AnalyzeOptions = ValidateOptions
 
@@ -120,6 +134,8 @@ export function compile(src: string, options: CompileOptions): CompileResult {
     throw new CompileError(diagnostics)
   }
 
+  const transformedFile = applyDirectiveTransforms(file, options)
+
   const genOptions = {
     cssImportPath: options.cssImportPath,
     sourceFile: options.sourceFile,
@@ -131,13 +147,13 @@ export function compile(src: string, options: CompileOptions): CompileResult {
   let result: CompileResult
   switch (options.target) {
     case 'react':
-      result = new ReactTarget().generate(file, options.componentName, genOptions)
+      result = new ReactTarget().generate(transformedFile, options.componentName, genOptions)
       break
     case 'vue':
-      result = new VueTarget().generate(file, options.componentName, genOptions)
+      result = new VueTarget().generate(transformedFile, options.componentName, genOptions)
       break
     case 'svelte':
-      result = new SvelteTarget().generate(file, options.componentName, genOptions)
+      result = new SvelteTarget().generate(transformedFile, options.componentName, genOptions)
       break
     default: {
       const _exhaustive: never = options.target
@@ -156,7 +172,7 @@ export function compile(src: string, options: CompileOptions): CompileResult {
             code: 'loom/bundle-budget',
             severity: 'warning',
             message: `Generated ${options.target} output is ${size} bytes, exceeding budget ${options.bundleBudgetBytes} bytes.`,
-            span: file.span ?? {
+            span: transformedFile.span ?? {
               start: { line: 1, column: 1, offset: 0 },
               end: { line: 1, column: 1, offset: 0 },
             },
@@ -168,7 +184,7 @@ export function compile(src: string, options: CompileOptions): CompileResult {
     }
   }
 
-  return result
+  return finalizeAdvancedResult(result, transformedFile, options)
 }
 
 function validateCompileOptions(options: CompileOptions): void {

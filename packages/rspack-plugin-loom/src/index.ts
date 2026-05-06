@@ -1,9 +1,10 @@
 import path from 'node:path'
 import { compile } from '@loom-lang/compiler'
+import type { AdvancedCompileOptions } from '@loom-lang/compiler'
 
 export type LoomRspackTarget = 'react' | 'vue' | 'svelte'
 
-export type LoomRspackPluginOptions = {
+export type LoomRspackPluginOptions = AdvancedCompileOptions & {
   target?: LoomRspackTarget
 }
 
@@ -42,6 +43,7 @@ export function createRspackRule(options: LoomRspackPluginOptions = {}) {
 
 export function compileForRspack(source: string, sourceFile: string, options: LoomRspackPluginOptions = {}) {
   return compile(source, {
+    ...options,
     componentName: path.basename(sourceFile, '.loom'),
     target: options.target ?? 'react',
     sourceFile,

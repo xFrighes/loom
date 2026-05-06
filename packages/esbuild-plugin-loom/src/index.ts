@@ -1,11 +1,11 @@
 import path from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { compile } from '@loom-lang/compiler'
-import type { CompileResult } from '@loom-lang/compiler'
+import type { AdvancedCompileOptions, CompileResult } from '@loom-lang/compiler'
 
 export type LoomEsbuildTarget = 'react' | 'vue' | 'svelte'
 
-export type LoomEsbuildPluginOptions = {
+export type LoomEsbuildPluginOptions = AdvancedCompileOptions & {
   target?: LoomEsbuildTarget
 }
 
@@ -26,7 +26,7 @@ export function loom(options: LoomEsbuildPluginOptions = {}): EsbuildPlugin {
     setup(build) {
       build.onLoad({ filter: /\.loom$/ }, async (args) => {
         const source = await readFile(args.path, 'utf8')
-        const result = compileForEsbuild(source, args.path, target)
+        const result = compileForEsbuild(source, args.path, target, options)
         return {
           contents: result.code,
           loader: target === 'react' ? 'jsx' : 'js',
@@ -39,8 +39,9 @@ export function loom(options: LoomEsbuildPluginOptions = {}): EsbuildPlugin {
 
 export default loom
 
-export function compileForEsbuild(source: string, sourceFile: string, target: LoomEsbuildTarget): CompileResult {
+export function compileForEsbuild(source: string, sourceFile: string, target: LoomEsbuildTarget, options: AdvancedCompileOptions = {}): CompileResult {
   return compile(source, {
+    ...options,
     componentName: path.basename(sourceFile, '.loom'),
     target,
     sourceFile,

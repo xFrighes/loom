@@ -1,9 +1,10 @@
 import path from 'node:path'
 import { compile } from '@loom-lang/compiler'
+import type { AdvancedCompileOptions } from '@loom-lang/compiler'
 
 export type LoomWebpackTarget = 'react' | 'vue' | 'svelte'
 
-export type LoomWebpackLoaderOptions = {
+export type LoomWebpackLoaderOptions = AdvancedCompileOptions & {
   target?: LoomWebpackTarget
 }
 
@@ -34,6 +35,7 @@ export default function loomWebpackLoader(this: LoaderContext, source: string): 
 
 export function compileForWebpack(source: string, sourceFile: string, options: LoomWebpackLoaderOptions = {}) {
   return compile(source, {
+    ...options,
     componentName: path.basename(sourceFile, '.loom'),
     target: options.target ?? 'react',
     sourceFile,

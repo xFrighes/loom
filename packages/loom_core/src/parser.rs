@@ -132,6 +132,7 @@ impl HasSpan for PropDecl { fn span(&self) -> Option<SourceSpan> { self.span.clo
 impl HasSpan for StateDecl { fn span(&self) -> Option<SourceSpan> { self.span.clone() } }
 impl HasSpan for ComputedDecl { fn span(&self) -> Option<SourceSpan> { self.span.clone() } }
 impl HasSpan for LogicStatement { fn span(&self) -> Option<SourceSpan> { self.span.clone() } }
+impl HasSpan for MetaEntry { fn span(&self) -> Option<SourceSpan> { self.span.clone() } }
 
 // ─── Logic IR Parser ─────────────────────────────────────────────────────────
 
@@ -268,6 +269,40 @@ fn parse_file(s: &mut TokenStream) -> Result<LoomFile, ParseError> {
         file.span = merge_spans(vec![file.span.clone(), merge_spans(tokens.iter().map(|t| Some(t.span.clone())).collect())]);
     }
 
+    if let Some(tokens) = raw_zones.get("meta") {
+        file.meta = Some(parse_key_value_zone(tokens));
+    }
+
+    if let Some(tokens) = raw_zones.get("schema") {
+        let trimmed = trim_trailing_blank_tokens(tokens);
+        let src = join_raw_zone(trimmed);
+        let span = merge_spans(trimmed.iter().map(|t| Some(t.span.clone())).collect());
+        file.schema = Some(SchemaZone {
+            span,
+            src,
+            declarations: parse_schema_zone(trimmed),
+        });
+    }
+
+    if let Some(tokens) = raw_zones.get("server") {
+        let trimmed = trim_trailing_blank_tokens(tokens);
+        let src = join_raw_zone(trimmed);
+        let span = merge_spans(trimmed.iter().map(|t| Some(t.span.clone())).collect());
+        file.server = Some(ServerZone {
+            span: span.clone(),
+            src: src.clone(),
+            statements: parse_logic(&src, "ts", span),
+        });
+    }
+
+    if let Some(tokens) = raw_zones.get("tokens") {
+        let trimmed = trim_trailing_blank_tokens(tokens);
+        file.tokens = Some(TokenZone {
+            span: merge_spans(trimmed.iter().map(|t| Some(t.span.clone())).collect()),
+            entries: parse_tokens_zone(trimmed),
+        });
+    }
+
     if let Some(tokens) = raw_zones.get("props") {
         file.props = Some(parse_props_zone(tokens));
     }
@@ -322,6 +357,10 @@ fn parse_file(s: &mut TokenStream) -> Result<LoomFile, ParseError> {
         span_from_nodes(file.props.as_ref().unwrap_or(&vec![])),
         span_from_nodes(file.state.as_ref().unwrap_or(&vec![])),
         span_from_nodes(file.computed.as_ref().unwrap_or(&vec![])),
+        span_from_nodes(file.meta.as_ref().unwrap_or(&vec![])),
+        file.schema.as_ref().and_then(|z| z.span.clone()),
+        file.server.as_ref().and_then(|z| z.span.clone()),
+        file.tokens.as_ref().and_then(|z| z.span.clone()),
         file.logic.as_ref().and_then(|l| l.span.clone()),
         span_from_nodes(file.markup.as_ref().unwrap_or(&vec![])),
     ]);
@@ -339,6 +378,88 @@ fn trim_trailing_blank_tokens(lines: &[Token]) -> &[Token] {
 
 fn join_raw_zone(lines: &[Token]) -> String {
     lines.iter().map(|t| t.value.as_str()).collect::<Vec<&str>>().join("\n")
+}
+
+fn parse_key_value_zone(lines: &[Token]) -> Vec<MetaEntry> {
+    let mut entries = Vec::new();
+    for line in lines {
+        let trimmed = line.value.trim();
+        if trimmed.is_empty() || trimmed.starts_with("//") { continue; }
+        let split_idx = find_zone_delimiter(trimmed);
+        if split_idx == -1 {
+            entries.push(MetaEntry { span: Some(line.span.clone()), key: trimmed.to_string(), value: "true".to_string() });
+            continue;
+        }
+        entries.push(MetaEntry {
+            span: Some(line.span.clone()),
+            key: trimmed[..split_idx as usize].trim().to_string(),
+            value: strip_optional_quotes(trimmed[(split_idx + 1) as usize..].trim()),
+        });
+    }
+    entries
+}
+
+fn parse_schema_zone(lines: &[Token]) -> Vec<SchemaDecl> {
+    let mut declarations = Vec::new();
+    for line in lines {
+        let trimmed = line.value.trim();
+        if trimmed.is_empty() || trimmed.starts_with("//") { continue; }
+        let eq_idx = find_top_level_equals(trimmed);
+        let colon_idx = crate::expr::find_top_level_colon(trimmed);
+        let split_idx = if eq_idx != -1 { eq_idx } else { colon_idx as isize };
+        if split_idx == -1 { continue; }
+        declarations.push(SchemaDecl {
+            span: Some(line.span.clone()),
+            name: trimmed[..split_idx as usize].trim().to_string(),
+            expr: trimmed[(split_idx + 1) as usize..].trim().to_string(),
+        });
+    }
+    declarations
+}
+
+fn parse_tokens_zone(lines: &[Token]) -> Vec<DesignTokenEntry> {
+    let mut entries = Vec::new();
+    for line in lines {
+        let trimmed = line.value.trim();
+        if trimmed.is_empty() || trimmed.starts_with("//") { continue; }
+        let split_idx = find_zone_delimiter(trimmed);
+        if split_idx == -1 { continue; }
+        let raw_path = trimmed[..split_idx as usize].trim();
+        let value = strip_optional_quotes(trimmed[(split_idx + 1) as usize..].trim());
+        let segments: Vec<String> = raw_path.split('.').map(|part| part.trim().to_string()).filter(|part| !part.is_empty()).collect();
+        let theme = if (segments.first().map(|s| s.as_str()) == Some("theme") || segments.first().map(|s| s.as_str()) == Some("themes")) && segments.len() > 1 {
+            Some(segments[1].clone())
+        } else {
+            None
+        };
+        let path = if theme.is_some() { segments[2..].to_vec() } else { segments };
+        if !path.is_empty() {
+            entries.push(DesignTokenEntry { span: Some(line.span.clone()), path, value, theme });
+        }
+    }
+    entries
+}
+
+fn strip_optional_quotes(value: &str) -> String {
+    if ((value.starts_with('"') && value.ends_with('"')) || (value.starts_with('\'') && value.ends_with('\''))) && value.len() >= 2 {
+        value[1..value.len() - 1].to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+fn find_zone_delimiter(line: &str) -> isize {
+    let bytes = line.as_bytes();
+    for i in 0..bytes.len().saturating_sub(1) {
+        if (bytes[i] == b':' || bytes[i] == b'=') && bytes[i + 1].is_ascii_whitespace() {
+            return i as isize;
+        }
+    }
+    let colon_idx = crate::expr::find_top_level_colon(line);
+    let eq_idx = find_top_level_equals(line);
+    if colon_idx == -1 { return eq_idx; }
+    if eq_idx == -1 { return colon_idx as isize; }
+    std::cmp::min(colon_idx as isize, eq_idx)
 }
 
 // ─── State zone parser ────────────────────────────────────────────────────────

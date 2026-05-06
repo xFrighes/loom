@@ -23,12 +23,14 @@ export function tryWasmParse(src: string): any {
     if (result && result.error) {
       throw new Error(result.error)
     }
+    if (/^\s*-\s+(meta|schema|server|tokens)\b/m.test(src) && missingAdvancedZoneResult(result)) return null
     return result
   }
   const result = wasmModule.wasm_parse(src)
   if (result && result.error) {
     throw new Error(result.error)
   }
+  if (/^\s*-\s+(meta|schema|server|tokens)\b/m.test(src) && missingAdvancedZoneResult(result)) return null
   return result
 }
 
@@ -38,4 +40,9 @@ export function tryWasmTokenize(src: string): any {
     return JSON.parse(wasmModule.wasm_tokenize_json(src))
   }
   return wasmModule.wasm_tokenize(src)
+}
+
+function missingAdvancedZoneResult(result: any): boolean {
+  if (!result || typeof result !== 'object') return true
+  return result.meta === undefined && result.schema === undefined && result.server === undefined && result.tokens === undefined
 }

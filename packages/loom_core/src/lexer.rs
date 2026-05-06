@@ -163,7 +163,7 @@ pub fn tokenize(src: &str) -> LexerResult {
     let mut line_offset = 0;
 
     let ctx_re = CTX_RE.get_or_init(|| {
-        Regex::new(r"^- (generics|props|state|computed|onMount|onUpdate|onUnmount|ts|js|pug)(\s|$)").unwrap()
+        Regex::new(r"^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|pug)(\s|$)").unwrap()
     });
 
     for (i, raw_line) in lines.iter().enumerate() {

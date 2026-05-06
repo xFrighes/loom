@@ -2,11 +2,12 @@ import path from 'node:path'
 import { readFileSync } from 'node:fs'
 import { CompileError, compile, createDiagnosticOverlay, renderDiagnosticOverlayText } from '@loom-lang/compiler'
 import type { CompileResult } from '@loom-lang/compiler'
+import type { AdvancedCompileOptions } from '@loom-lang/compiler'
 import { transformWithEsbuild } from 'vite'
 import type { Plugin, ResolvedConfig } from 'vite'
 import remapping from '@ampproject/remapping'
 
-export type LoomPluginOptions = {
+export type LoomPluginOptions = AdvancedCompileOptions & {
   /**
    * Target framework.
    * If omitted, the plugin auto-detects from other Vite plugins in the config.
@@ -43,7 +44,7 @@ export default function loom(options: LoomPluginOptions = {}): Plugin {
       const virtual = parseVirtualLoomId(id)
       if (!virtual) return null
 
-      const result = loadCompileResult(this, virtual.sourcePath, virtual.target, compileCache)
+      const result = loadCompileResult(this, virtual.sourcePath, virtual.target, compileCache, options)
 
       if (virtual.kind === 'style') {
         return result.css
@@ -103,6 +104,7 @@ function loadCompileResult(
   sourcePath: string,
   target: 'react' | 'vue' | 'svelte',
   cache: Map<string, CompileResult>,
+  options: AdvancedCompileOptions = {},
 ): CompileResult {
   ctx.addWatchFile(sourcePath)
   const src = readFileSync(sourcePath, 'utf8')
@@ -114,6 +116,7 @@ function loadCompileResult(
 
   try {
     const result = compile(src, {
+      ...options,
       componentName,
       target,
       cssImportPath: target === 'react' ? createStyleId(sourcePath) : undefined,

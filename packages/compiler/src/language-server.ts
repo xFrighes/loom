@@ -206,6 +206,10 @@ const ZONE_DOCS: Record<string, string> = {
   js: '**JavaScript logic zone** (`- js`) — Arbitrary JavaScript. Same rules as `- ts`.',
   props: '**Props zone** (`- props`) — Component props declaration.\n\nSyntax: `name: Type [= default]`',
   generics: '**Generics zone** (`- generics`) — TypeScript generic parameters for the component, e.g. `T extends object`.',
+  meta: '**Meta zone** (`- meta`) — Head metadata. Syntax: `title: Page title`, `description: ...`, `og:title: ...`.',
+  schema: '**Schema zone** (`- schema`) — Runtime validation declarations emitted when `schemaAdapter` is selected.',
+  server: '**Server zone** (`- server`) — SSR/server exports. Emitted only with `ssr` or explicit server output.',
+  tokens: '**Tokens zone** (`- tokens`) — Design tokens emitted as CSS variables. Syntax: `color.primary: #0055ff`, `theme.dark.color.primary: #8ab4ff`.',
 }
 
 function describeBehavior(event: string, mods: string[]): string {
@@ -332,7 +336,7 @@ function describeElement(node: ElementNode): string {
 
 // ─── Completions ──────────────────────────────────────────────────────────────
 
-const ZONE_COMPLETIONS = ['pug', 'ts', 'js', 'props', 'generics']
+const ZONE_COMPLETIONS = ['pug', 'ts', 'js', 'props', 'generics', 'meta', 'schema', 'server', 'tokens']
 
 const HTML_ELEMENTS = [
   'div', 'span', 'p', 'a', 'button', 'input', 'form', 'label', 'ul', 'ol',

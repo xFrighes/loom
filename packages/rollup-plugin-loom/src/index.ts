@@ -1,10 +1,10 @@
 import path from 'node:path'
 import { compile } from '@loom-lang/compiler'
-import type { CompileResult } from '@loom-lang/compiler'
+import type { AdvancedCompileOptions, CompileResult } from '@loom-lang/compiler'
 
 export type LoomRollupTarget = 'react' | 'vue' | 'svelte'
 
-export type LoomRollupPluginOptions = {
+export type LoomRollupPluginOptions = AdvancedCompileOptions & {
   target?: LoomRollupTarget
 }
 
@@ -25,7 +25,7 @@ export function loom(options: LoomRollupPluginOptions = {}): RollupPlugin {
     name: 'rollup-plugin-loom',
     transform(source, id) {
       if (!stripQuery(id).endsWith('.loom')) return null
-      const result = compileForRollup(source, id, target)
+      const result = compileForRollup(source, id, target, options)
       return {
         code: result.code,
         map: result.map ?? null,
@@ -36,9 +36,10 @@ export function loom(options: LoomRollupPluginOptions = {}): RollupPlugin {
 
 export default loom
 
-export function compileForRollup(source: string, id: string, target: LoomRollupTarget): CompileResult {
+export function compileForRollup(source: string, id: string, target: LoomRollupTarget, options: AdvancedCompileOptions = {}): CompileResult {
   const sourceFile = stripQuery(id)
   return compile(source, {
+    ...options,
     componentName: path.basename(sourceFile, '.loom'),
     target,
     sourceFile,

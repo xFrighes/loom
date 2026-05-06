@@ -23,7 +23,7 @@
       "patterns": [
         {
           "name": "entity.name.section.zone.loom",
-          "match": "^\\s*-\\s+(pug|ts|js|props|generics|state|computed)\\b"
+          "match": "^\\s*-\\s+(pug|ts|js|props|generics|state|computed|meta|schema|server|tokens)\\b"
         }
       ]
     },

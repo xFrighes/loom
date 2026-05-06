@@ -42,5 +42,23 @@
       "  ${3:aria-label} \"${4:Action}\""
     ],
     "description": "Create a data/attribute dimension."
+  },
+  "Meta Zone": {
+    "prefix": "meta",
+    "body": [
+      "- meta",
+      "  title: ${1:Page title}",
+      "  description: ${2:Page description}"
+    ],
+    "description": "Create head metadata."
+  },
+  "Tokens Zone": {
+    "prefix": "tokens",
+    "body": [
+      "- tokens",
+      "  color.primary: ${1:#0055ff}",
+      "  theme.dark.color.primary: ${2:#8ab4ff}"
+    ],
+    "description": "Create design tokens."
   }
 }

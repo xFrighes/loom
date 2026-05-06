@@ -20,6 +20,7 @@ export function tryRustParse(src: string): any {
     if (result && result.error) {
       throw new Error(result.error)
     }
+    if (hasAdvancedZones(src) && missingAdvancedZoneResult(result)) return null
     return result
   }
 
@@ -29,6 +30,7 @@ export function tryRustParse(src: string): any {
        // Handle Rust-originated parse error
        throw new Error(result.error) 
     }
+    if (hasAdvancedZones(src) && missingAdvancedZoneResult(result)) return null
     return normalizeRustResult(result)
   }
   return null
@@ -60,13 +62,26 @@ export function tryRustTokenize(src: string): any {
 
 export function tryRustParseMany(sources: string[]): any[] | null {
   if (rustCore && typeof rustCore.napiParseManyJson === 'function') {
-    return rustCore.napiParseManyJson(sources).map((result: string) => {
+    const parsedResults = rustCore.napiParseManyJson(sources).map((result: string) => {
       const parsed = JSON.parse(result)
       if (parsed && parsed.error) {
         throw new Error(parsed.error)
       }
       return parsed
     })
+    if (parsedResults.some((result: any, index: number) => hasAdvancedZones(sources[index]) && missingAdvancedZoneResult(result))) {
+      return null
+    }
+    return parsedResults
   }
   return null
+}
+
+function hasAdvancedZones(src: string): boolean {
+  return /^\s*-\s+(meta|schema|server|tokens)\b/m.test(src)
+}
+
+function missingAdvancedZoneResult(result: any): boolean {
+  if (!result || typeof result !== 'object') return true
+  return result.meta === undefined && result.schema === undefined && result.server === undefined && result.tokens === undefined
 }

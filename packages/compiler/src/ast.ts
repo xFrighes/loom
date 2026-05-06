@@ -14,6 +14,10 @@ export type SourceSpan = {
 export type LoomFile = {
   span?: SourceSpan
   generics?: string // raw generic params, e.g. "<T extends Record<string, any>>"
+  meta?: MetaEntry[]
+  schema?: SchemaZone
+  server?: ServerZone
+  tokens?: TokenZone
   props?: PropDecl[]
   state?: StateDecl[]
   computed?: ComputedDecl[]
@@ -22,6 +26,42 @@ export type LoomFile = {
   onUnmount?: LogicStatement[]
   logic?: LogicZone
   markup?: MarkupNode[]
+}
+
+export type MetaEntry = {
+  span?: SourceSpan
+  key: string
+  value: string
+}
+
+export type SchemaZone = {
+  span?: SourceSpan
+  src: string
+  declarations: SchemaDecl[]
+}
+
+export type SchemaDecl = {
+  span?: SourceSpan
+  name: string
+  expr: string
+}
+
+export type ServerZone = {
+  span?: SourceSpan
+  src: string
+  statements: LogicStatement[]
+}
+
+export type TokenZone = {
+  span?: SourceSpan
+  entries: DesignTokenEntry[]
+}
+
+export type DesignTokenEntry = {
+  span?: SourceSpan
+  path: string[]
+  value: string
+  theme?: string
 }
 
 export type PropDecl = {
