@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { compilePlayground, defaultPlaygroundSource } from '../src/index.js'
+import {
+  applyTutorialLesson,
+  compilePlayground,
+  defaultPlaygroundSource,
+  getPlaygroundTutorialLesson,
+  playgroundTutorialLessons,
+} from '../src/index.js'
 
 describe('@loom-lang/playground', () => {
   it('compiles the default source', () => {
@@ -16,5 +22,32 @@ describe('@loom-lang/playground', () => {
     if (!result.ok) {
       expect(result.message).toContain('loom/')
     }
+  })
+
+  it('ships guided tutorial lessons for core playground concepts', () => {
+    expect(playgroundTutorialLessons.map((lesson) => lesson.focus)).toEqual([
+      'zones',
+      'dimensions',
+      'state',
+      'events',
+      'targets',
+    ])
+
+    for (const lesson of playgroundTutorialLessons) {
+      expect(lesson.source).toContain('- pug')
+      expect(lesson.outputs.react).toBeTruthy()
+      expect(lesson.outputs.vue).toBeTruthy()
+      expect(lesson.outputs.svelte).toBeTruthy()
+    }
+  })
+
+  it('creates compile input from a tutorial lesson', () => {
+    const lesson = getPlaygroundTutorialLesson('targets')
+    expect(lesson).toBeDefined()
+
+    const input = applyTutorialLesson(lesson!, 'vue')
+    expect(input.target).toBe('vue')
+    expect(input.source).toBe(defaultPlaygroundSource)
+    expect(input.componentName).toBe('PlaygroundComponent')
   })
 })

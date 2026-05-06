@@ -35,6 +35,7 @@
     }
   },
   "bin": {
+    "loom": "./dist/cli.js",
     "loomc": "./dist/cli.js",
     "loom-language-server": "./dist/language-server.js"
   },

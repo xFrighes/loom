@@ -12,11 +12,132 @@ export interface CodemodOptions {
   sourcePath: string
 }
 
-export async function convertToLoom(options: CodemodOptions): Promise<string> {
-  const project = new Project()
-  const sourceFile = project.addSourceFileAtPath(options.sourcePath)
+export type MigrationFinding = {
+  code: string
+  severity: 'info' | 'warning' | 'error'
+  message: string
+  fixUrl: string
+}
 
-  // Focus on the first exported declaration
+export type MigrationReport = {
+  sourcePath: string
+  componentName: string
+  score: number
+  supportedPatterns: string[]
+  findings: MigrationFinding[]
+  recommendedNextStep: string
+}
+
+export async function convertToLoom(options: CodemodOptions): Promise<string> {
+  const component = loadFirstComponent(options.sourcePath)
+
+  const props = extractProps(component)
+  const logic = extractLogic(component)
+  const markup = extractMarkup(component)
+
+  return assembleLoom(props, logic, markup)
+}
+
+export async function analyzeMigration(options: CodemodOptions): Promise<MigrationReport> {
+  const component = loadFirstComponent(options.sourcePath)
+  const sourceFile = component.getSourceFile()
+  const findings: MigrationFinding[] = []
+  const supportedPatterns: string[] = []
+
+  if (component.getParameters().length > 0) {
+    supportedPatterns.push('typed props')
+  }
+  if (component.getDescendantsOfKind(SyntaxKind.JsxElement).length > 0 ||
+    component.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement).length > 0) {
+    supportedPatterns.push('JSX markup')
+  }
+  if (component.getText().includes('useState(')) {
+    supportedPatterns.push('local state')
+  }
+
+  if (component.getDescendantsOfKind(SyntaxKind.JsxSpreadAttribute).length > 0) {
+    findings.push(finding(
+      'loom-migrate/jsx-spread',
+      'warning',
+      'JSX spread attributes need manual review before conversion.',
+      'https://loom.dev/docs/migration/react#spread-attributes',
+    ))
+  }
+
+  if (sourceFile.getFullText().includes('dangerouslySetInnerHTML')) {
+    findings.push(finding(
+      'loom-migrate/unsafe-html',
+      'error',
+      'dangerouslySetInnerHTML requires an explicit unsafe HTML migration decision.',
+      'https://loom.dev/docs/migration/react#unsafe-html',
+    ))
+  }
+
+  if (component.getText().includes('.map(')) {
+    findings.push(finding(
+      'loom-migrate/list-key',
+      'warning',
+      'Array map rendering should become an each block with a stable key.',
+      'https://loom.dev/docs/migration/react#lists-and-keys',
+    ))
+  }
+
+  if (component.getText().includes('useEffect(')) {
+    findings.push(finding(
+      'loom-migrate/effects',
+      'warning',
+      'Effects remain target-specific logic and should stay in the ts zone.',
+      'https://loom.dev/docs/migration/react#effects',
+    ))
+  }
+
+  const score = Math.max(0, 100 - findings.reduce((total, item) => {
+    if (item.severity === 'error') return total + 35
+    if (item.severity === 'warning') return total + 15
+    return total + 5
+  }, 0))
+
+  return {
+    sourcePath: options.sourcePath,
+    componentName: component.getSymbol()?.getName() ?? 'Component',
+    score,
+    supportedPatterns,
+    findings,
+    recommendedNextStep: score >= 80
+      ? 'Run loom-codemod and review generated markup.'
+      : 'Resolve migration findings before relying on generated Loom output.',
+  }
+}
+
+export function formatMigrationReport(report: MigrationReport): string {
+  const lines = [
+    `# Loom Migration Report`,
+    '',
+    `Component: ${report.componentName}`,
+    `Source: ${report.sourcePath}`,
+    `Score: ${report.score}/100`,
+    '',
+    `## Supported Patterns`,
+    ...(report.supportedPatterns.length > 0
+      ? report.supportedPatterns.map((item) => `- ${item}`)
+      : ['- none detected']),
+    '',
+    `## Findings`,
+    ...(report.findings.length > 0
+      ? report.findings.map((item) => `- [${item.severity}] ${item.code}: ${item.message} (${item.fixUrl})`)
+      : ['- none']),
+    '',
+    `## Next Step`,
+    report.recommendedNextStep,
+    '',
+  ]
+  return lines.join('\n')
+}
+
+function loadFirstComponent(sourcePath: string): FunctionDeclaration | ArrowFunction {
+  const project = new Project()
+  const sourceFile = project.addSourceFileAtPath(sourcePath)
+
   let component = sourceFile.getExportedDeclarations().values().next().value?.[0] as any
 
   if (component && component.getKind() === SyntaxKind.VariableDeclaration) {
@@ -31,11 +152,11 @@ export async function convertToLoom(options: CodemodOptions): Promise<string> {
     throw new Error('No exported component found in source file.')
   }
 
-  const props = extractProps(component)
-  const logic = extractLogic(component)
-  const markup = extractMarkup(component)
+  return component
+}
 
-  return assembleLoom(props, logic, markup)
+function finding(code: string, severity: MigrationFinding['severity'], message: string, fixUrl: string): MigrationFinding {
+  return { code, severity, message, fixUrl }
 }
 
 function extractProps(component: FunctionDeclaration | ArrowFunction): string {

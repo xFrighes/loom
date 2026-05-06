@@ -1,0 +1,46 @@
+{
+  "Component": {
+    "prefix": "component",
+    "body": [
+      "- props",
+      "  ${1:title}: string = \"${2:Loom}\"",
+      "",
+      "- pug",
+      "${3:section}.card",
+      "  h1 {${1:title}}"
+    ],
+    "description": "Create a Loom component with props and markup."
+  },
+  "State": {
+    "prefix": "state",
+    "body": [
+      "- ts",
+      "  let ${1:count} = ${2:0}",
+      "",
+      "- pug",
+      "button",
+      "  @click",
+      "    ${1:count} = ${1:count} + 1",
+      "  ${3:Count}: {${1:count}}"
+    ],
+    "description": "Create a local state and event example."
+  },
+  "Style Dimension": {
+    "prefix": "style",
+    "body": [
+      "::",
+      "  ${1:display} ${2:flex}",
+      "  ${3:gap} ${4:12px}"
+    ],
+    "description": "Create a scoped style dimension."
+  },
+  "Data Dimension": {
+    "prefix": "attrs",
+    "body": [
+      ":",
+      "  ${1:type} ${2:button}",
+      "  ${3:aria-label} \"${4:Action}\""
+    ],
+    "description": "Create a data/attribute dimension."
+  }
+}

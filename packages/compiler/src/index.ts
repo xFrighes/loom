@@ -11,7 +11,26 @@ export type { LoomStructure, LoomTopLevelBlock, LoomTopLevelBlockKind, LoomMarku
 export type { CompileResult, CodegenTarget, TargetGenerateOptions } from './codegen/target.js'
 export { warnReactBehavior, warnMissingLoopKey } from './codegen/warnings.js'
 export { formatDiagnostic, hasErrors, validate } from './validate.js'
-export type { CompilerDiagnostic, DiagnosticSeverity } from './validate.js'
+export type { CompilerDiagnostic, DiagnosticSeverity, DiagnosticSource, ValidateOptions } from './validate.js'
+export {
+  createDiagnosticOverlay,
+  formatDiagnosticForOverlay,
+  normalizeDiagnostic,
+  renderDiagnosticOverlayText,
+} from './overlay.js'
+export type { DiagnosticOverlayPayload, NormalizedDiagnostic } from './overlay.js'
+export { createIncrementalCache, IncrementalCache } from './incremental-cache.js'
+export type {
+  IncrementalCacheStats,
+  IncrementalCompileResult,
+  ZoneCacheEntry,
+} from './incremental-cache.js'
+export { indexWorkspace } from './workspace-index.js'
+export type {
+  WorkspaceComponentContract,
+  WorkspaceIndex,
+  WorkspacePackage,
+} from './workspace-index.js'
 
 import { parse, ParseError } from './parser.js'
 import { ReactTarget } from './codegen/react.js'
@@ -19,7 +38,7 @@ import { VueTarget } from './codegen/vue.js'
 import { SvelteTarget } from './codegen/svelte.js'
 import type { CompileResult } from './codegen/target.js'
 import type { LoomFile } from './ast.js'
-import { hasErrors, validate, type CompilerDiagnostic } from './validate.js'
+import { hasErrors, validate, type CompilerDiagnostic, type ValidateOptions } from './validate.js'
 import { formatLoom } from './printer.js'
 export type CompileOptions = {
   /** Name of the component (used for CSS class hashing and function name) */
@@ -40,7 +59,15 @@ export type CompileOptions = {
   ssr?: boolean
   /** Optional utility-first CSS generation mode. */
   atomicCss?: boolean
+  /** Enable strict accessibility diagnostics. */
+  strictA11y?: boolean
+  /** Enable unsafe HTML, URL, event, and expression scanning. */
+  security?: boolean
+  /** Warn when generated target output exceeds this many bytes. */
+  bundleBudgetBytes?: number
 }
+
+export type AnalyzeOptions = ValidateOptions
 
 export type AnalyzeResult = {
   file?: LoomFile
@@ -53,10 +80,10 @@ export class CompileError extends Error {
   }
 }
 
-export function analyze(src: string): AnalyzeResult {
+export function analyze(src: string, options: AnalyzeOptions = {}): AnalyzeResult {
   try {
     const file = parse(src)
-    const diagnostics = validate(file)
+    const diagnostics = validate(file, options)
     return { file, diagnostics }
   } catch (error) {
     if (error instanceof ParseError) {
@@ -66,6 +93,8 @@ export function analyze(src: string): AnalyzeResult {
           severity: 'error',
           message: error.message,
           span: error.span,
+          source: 'parser',
+          suggestion: 'Fix the syntax at this source span and rerun compilation.',
         }],
       }
     }
@@ -82,7 +111,10 @@ export function analyze(src: string): AnalyzeResult {
 export function compile(src: string, options: CompileOptions): CompileResult {
   validateCompileOptions(options)
 
-  const { file, diagnostics } = analyze(src)
+  const { file, diagnostics } = analyze(src, {
+    strictA11y: options.strictA11y,
+    security: options.security,
+  })
 
   if (!file || hasErrors(diagnostics)) {
     throw new CompileError(diagnostics)
@@ -96,18 +128,47 @@ export function compile(src: string, options: CompileOptions): CompileResult {
     atomicCss: options.atomicCss,
   }
 
+  let result: CompileResult
   switch (options.target) {
     case 'react':
-      return new ReactTarget().generate(file, options.componentName, genOptions)
+      result = new ReactTarget().generate(file, options.componentName, genOptions)
+      break
     case 'vue':
-      return new VueTarget().generate(file, options.componentName, genOptions)
+      result = new VueTarget().generate(file, options.componentName, genOptions)
+      break
     case 'svelte':
-      return new SvelteTarget().generate(file, options.componentName, genOptions)
+      result = new SvelteTarget().generate(file, options.componentName, genOptions)
+      break
     default: {
       const _exhaustive: never = options.target
       throw new Error(`Unknown target: ${options.target}`)
     }
   }
+
+  if (options.bundleBudgetBytes !== undefined) {
+    const size = Buffer.byteLength(result.code + (result.css ?? ''), 'utf8')
+    if (size > options.bundleBudgetBytes) {
+      result = {
+        ...result,
+        warnings: [
+          ...(result.warnings ?? []),
+          {
+            code: 'loom/bundle-budget',
+            severity: 'warning',
+            message: `Generated ${options.target} output is ${size} bytes, exceeding budget ${options.bundleBudgetBytes} bytes.`,
+            span: file.span ?? {
+              start: { line: 1, column: 1, offset: 0 },
+              end: { line: 1, column: 1, offset: 0 },
+            },
+            source: 'codegen',
+            suggestion: 'Split this component or move repeated static content into children.',
+          },
+        ],
+      }
+    }
+  }
+
+  return result
 }
 
 function validateCompileOptions(options: CompileOptions): void {

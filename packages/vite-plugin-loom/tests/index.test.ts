@@ -20,8 +20,8 @@ function createResolveContext(resolvedId: string) {
 function createLoadContext() {
   return {
     addWatchFile: vi.fn(),
-    error(message: string): never {
-      throw new Error(message)
+    error(error: string | { message: string }): never {
+      throw new Error(typeof error === 'string' ? error : error.message)
     },
   }
 }
@@ -124,5 +124,16 @@ describe('vite-plugin-loom', () => {
     expect(first).toContain('First')
     expect(second).toContain('Second')
     expect(second).not.toContain('First')
+  })
+
+  it('surfaces compiler diagnostics as source-located overlay errors', async () => {
+    const sourcePath = writeFixture('- pug\ndiv\n  :\n    id first\n    id second')
+    const plugin = loom({ target: 'react' })
+    plugin.configResolved?.({ plugins: [] } as any)
+    const entryId = `${sourcePath.slice(0, -'.loom'.length)}-loom.js?loom-entry=1&loom-target=react&loom-source=${encodeURIComponent(sourcePath)}`
+
+    await expect(plugin.load!.call(createLoadContext() as any, entryId)).rejects.toThrow(/Loom compilation failed/)
+    await expect(plugin.load!.call(createLoadContext() as any, entryId)).rejects.toThrow(/loom\/duplicate-attr/)
+    await expect(plugin.load!.call(createLoadContext() as any, entryId)).rejects.toThrow(/fix:/)
   })
 })

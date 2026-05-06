@@ -11,29 +11,29 @@ Loom is a framework-agnostic UI language compiling to React, Vue, and Svelte.
 Goal: Production-grade stability and ecosystem maturity.
 
 ### 🎯 Product Appeal & Adoption
-- [ ] **Create Loom App:** Ship `create-loom-app` with React, Vue, Svelte, and LoomKit starters so first-run success is one command.
-- [ ] **Interactive Tutorial:** Add a guided browser tutorial that teaches zones, dimensions, state, events, and target switching inside the playground.
-- [ ] **Example Gallery:** Publish polished real-world examples (dashboard, marketing page, form workflow, content site) with side-by-side React/Vue/Svelte output.
-- [ ] **VS Code Extension:** Package syntax highlighting, diagnostics, formatting, hover docs, snippets, and a local preview panel around the existing language server.
-- [ ] **Unified Error Overlay:** Standardize parser, validation, and target codegen errors into one overlay with source spans and suggested fixes.
-- [ ] **Loom Doctor:** Add `loom doctor` to detect broken package versions, missing bundler config, WASM/NAPI fallback issues, and stale generated artifacts.
-- [ ] **Migration Experience:** Extend the codemod into a guided migration report that scores React components, flags unsupported patterns, and links to fixes.
-- [ ] **Benchmark Dashboard:** Publish compiler speed, output size, and rebuild latency comparisons against handwritten React/Vue/Svelte examples.
+- [x] **Create Loom App:** Ship `create-loom-app` with React, Vue, Svelte, and LoomKit starters so first-run success is one command.
+- [x] **Interactive Tutorial:** Add a guided browser tutorial that teaches zones, dimensions, state, events, and target switching inside the playground.
+- [x] **Example Gallery:** Publish polished real-world examples (dashboard, marketing page, form workflow, content site) with side-by-side React/Vue/Svelte output.
+- [x] **VS Code Extension:** Package syntax highlighting, diagnostics, formatting, hover docs, snippets, and a local preview panel around the existing language server.
+- [x] **Unified Error Overlay:** Standardize parser, validation, and target codegen errors into one overlay with source spans and suggested fixes.
+- [x] **Loom Doctor:** Add `loom doctor` to detect broken package versions, missing bundler config, WASM/NAPI fallback issues, and stale generated artifacts.
+- [x] **Migration Experience:** Extend the codemod into a guided migration report that scores React components, flags unsupported patterns, and links to fixes.
+- [x] **Benchmark Dashboard:** Publish compiler speed, output size, and rebuild latency comparisons against handwritten React/Vue/Svelte examples.
 
 ### 🦀 Rust Core & Performance
 - [x] **Performance Tuning:** Optimize NAPI/WASM overhead for large-scale projects.
 - [x] **Fuzz Testing:** Stress-test the Rust parser with malformed and edge-case inputs.
 - [x] **Memory Audit:** Ensure zero-copy or minimal-copy handoffs between Rust and Node.js.
-- [ ] **Incremental Cache v2:** Cache parse, analysis, and target codegen by zone to make large-project rebuilds visibly faster.
-- [ ] **Cross-Package Indexing:** Resolve symbols, imports, and component contracts across workspaces for monorepo-scale diagnostics.
+- [x] **Incremental Cache v2:** Cache parse, analysis, and target codegen by zone to make large-project rebuilds visibly faster.
+- [x] **Cross-Package Indexing:** Resolve symbols, imports, and component contracts across workspaces for monorepo-scale diagnostics.
 
 ### 🛡️ Security & Robustness
 - [x] **XSS Audit:** Verify expression sanitization across all three codegen targets.
 - [x] **LoomKit E2E:** Comprehensive testing for routing and SSR primitives.
 - [x] **Semantic Parity:** 100% feature alignment (props, state, events, slots) across all frameworks.
-- [ ] **Strict A11y Mode:** Add opt-in diagnostics that fail builds for unlabeled controls, invalid ARIA, and missing keyboard paths.
-- [ ] **Security Scanner:** Detect unsafe HTML, URL, event, and expression patterns before target code is emitted.
-- [ ] **Bundle Budgets:** Enforce per-component output size limits and report what pushed a component over budget.
+- [x] **Strict A11y Mode:** Add opt-in diagnostics that fail builds for unlabeled controls, invalid ARIA, and missing keyboard paths.
+- [x] **Security Scanner:** Detect unsafe HTML, URL, event, and expression patterns before target code is emitted.
+- [x] **Bundle Budgets:** Enforce per-component output size limits and report what pushed a component over budget.
 
 ### 📖 Documentation & Distribution
 - [ ] **Loom.dev:** Launch the official documentation site with integrated WASM playground.

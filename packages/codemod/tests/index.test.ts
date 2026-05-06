@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { convertToLoom } from '../src/index.js'
+import { analyzeMigration, convertToLoom, formatMigrationReport } from '../src/index.js'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
@@ -20,5 +20,17 @@ describe('codemod', () => {
     expect(result).toContain('button')
     expect(result).toContain('onClick {handleClick}')
     expect(result).toContain('className "my-button"')
+  })
+
+  it('generates a guided migration report for React components', async () => {
+    const sourcePath = join(__dirname, 'fixtures/Button.tsx')
+    const report = await analyzeMigration({ sourcePath })
+    const formatted = formatMigrationReport(report)
+
+    expect(report.score).toBeGreaterThan(80)
+    expect(report.supportedPatterns).toContain('typed props')
+    expect(report.supportedPatterns).toContain('local state')
+    expect(formatted).toContain('Loom Migration Report')
+    expect(formatted).toContain('Score:')
   })
 })

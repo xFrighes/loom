@@ -1,0 +1,94 @@
+{
+  "name": "vscode-loom",
+  "displayName": "Loom",
+  "version": "0.1.0",
+  "description": "Syntax highlighting, diagnostics, formatting, hovers, snippets, and preview support for Loom files",
+  "license": "MIT",
+  "type": "module",
+  "publisher": "loom-lang",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters"
+  ],
+  "activationEvents": [
+    "onLanguage:loom",
+    "onCommand:loom.preview"
+  ],
+  "main": "./dist/extension.cjs",
+  "contributes": {
+    "languages": [
+      {
+        "id": "loom",
+        "aliases": ["Loom", "loom"],
+        "extensions": [".loom"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "loom",
+        "scopeName": "source.loom",
+        "path": "./syntaxes/loom.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "loom",
+        "path": "./snippets/loom.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "loom.preview",
+        "title": "Loom: Open Preview"
+      },
+      {
+        "command": "loom.restartLanguageServer",
+        "title": "Loom: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "title": "Loom",
+      "properties": {
+        "loom.languageServer.path": {
+          "type": "string",
+          "default": "loom-language-server",
+          "description": "Path to the loom-language-server executable."
+        },
+        "loom.compiler.path": {
+          "type": "string",
+          "default": "loomc",
+          "description": "Path to the loomc executable."
+        },
+        "loom.preview.target": {
+          "type": "string",
+          "enum": ["react", "vue", "svelte"],
+          "default": "react",
+          "description": "Target used by the Loom preview command."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsup src/extension.ts --format cjs --platform node --external vscode --external vscode-languageclient/node --sourcemap",
+    "dev": "tsup src/extension.ts --format cjs --platform node --external vscode --external vscode-languageclient/node --sourcemap --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "@types/vscode": "^1.90.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "vsce": "^2.15.0"
+  }
+}

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -74,5 +74,43 @@ describe('loomc CLI', () => {
 
     expect(read().stdout).toContain('function Component404')
     expect(read().stdout).toContain('export default Component404')
+  })
+
+  it('runs loom doctor with project health checks', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'loom-doctor-'))
+    mkdirSync(path.join(root, 'src'), { recursive: true })
+    writeFileSync(path.join(root, 'package.json'), JSON.stringify({
+      devDependencies: {
+        'vite-plugin-loom': '^0.1.0',
+      },
+    }), 'utf8')
+    writeFileSync(path.join(root, 'vite.config.ts'), "import loom from 'vite-plugin-loom'\nexport default { plugins: [loom({ target: 'react' })] }\n", 'utf8')
+    writeFileSync(path.join(root, 'src/App.loom'), '- pug\ndiv Hello', 'utf8')
+
+    const { io, read } = createIo()
+    const code = runCli(['node', 'loomc', 'doctor', root], io)
+
+    expect(code).toBe(0)
+    expect(read().stdout).toContain('loom/doctor-package')
+    expect(read().stdout).toContain('loom/doctor-bundler')
+    expect(read().stdout).toContain('Summary:')
+  })
+
+  it('reports doctor failures as json', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'loom-doctor-bad-'))
+    writeFileSync(path.join(root, 'package.json'), JSON.stringify({
+      devDependencies: {
+        'vite-plugin-loom': '0.0.0',
+      },
+    }), 'utf8')
+    writeFileSync(path.join(root, 'vite.config.ts'), 'export default { plugins: [] }\n', 'utf8')
+
+    const { io, read } = createIo()
+    const code = runCli(['node', 'loomc', 'doctor', root, '--json'], io)
+    const report = JSON.parse(read().stdout)
+
+    expect(code).toBe(1)
+    expect(report.summary.errors).toBeGreaterThan(0)
+    expect(report.checks.map((check: { code: string }) => check.code)).toContain('loom/doctor-bundler')
   })
 })

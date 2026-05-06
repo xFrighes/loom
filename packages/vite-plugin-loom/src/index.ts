@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { readFileSync } from 'node:fs'
-import { compile } from '@loom-lang/compiler'
+import { CompileError, compile, createDiagnosticOverlay, renderDiagnosticOverlayText } from '@loom-lang/compiler'
 import type { CompileResult } from '@loom-lang/compiler'
 import { transformWithEsbuild } from 'vite'
 import type { Plugin, ResolvedConfig } from 'vite'
@@ -122,13 +122,37 @@ function loadCompileResult(
     cache.set(cacheKey, result)
     return result
   } catch (err) {
+    if (err instanceof CompileError) {
+      const overlay = createDiagnosticOverlay(err.diagnostics, {
+        sourceFile: sourcePath,
+        title: 'Loom compilation failed',
+      })
+      const first = overlay.diagnostics[0]
+      ctx.error({
+        id: sourcePath,
+        plugin: 'vite-plugin-loom',
+        message: renderDiagnosticOverlayText(overlay),
+        loc: first
+          ? {
+              file: sourcePath,
+              line: first.span.start.line,
+              column: first.span.start.column,
+            }
+          : undefined,
+      })
+    }
     ctx.error(err instanceof Error ? err.message : String(err))
   }
 }
 
 type PluginContextLike = {
   addWatchFile(file: string): void
-  error(message: string): never
+  error(error: string | {
+    id?: string
+    plugin?: string
+    message: string
+    loc?: { file?: string; line: number; column: number }
+  }): never
 }
 
 function stripQuery(id: string): string {

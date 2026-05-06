@@ -1,0 +1,96 @@
+{
+  "scopeName": "source.loom",
+  "name": "Loom",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#zones" },
+    { "include": "#dimensions" },
+    { "include": "#events" },
+    { "include": "#strings" },
+    { "include": "#expressions" },
+    { "include": "#tags" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.loom",
+          "match": "^\\s*//.*$"
+        }
+      ]
+    },
+    "zones": {
+      "patterns": [
+        {
+          "name": "entity.name.section.zone.loom",
+          "match": "^\\s*-\\s+(pug|ts|js|props|generics|state|computed)\\b"
+        }
+      ]
+    },
+    "dimensions": {
+      "patterns": [
+        {
+          "name": "keyword.operator.dimension.style.loom",
+          "match": "^\\s*::\\s*$"
+        },
+        {
+          "name": "keyword.operator.dimension.data.loom",
+          "match": "^\\s*:\\s*$"
+        }
+      ]
+    },
+    "events": {
+      "patterns": [
+        {
+          "name": "entity.name.function.event.loom",
+          "match": "^\\s*@([A-Za-z_][\\w-]*)(\\.[A-Za-z_][\\w-]*)*"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.loom",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "include": "#expressions" }]
+        },
+        {
+          "name": "string.quoted.single.loom",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "include": "#expressions" }]
+        }
+      ]
+    },
+    "expressions": {
+      "patterns": [
+        {
+          "name": "meta.embedded.expression.loom",
+          "begin": "\\{",
+          "end": "\\}"
+        }
+      ]
+    },
+    "tags": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.loom",
+          "match": "^\\s*([A-Za-z][\\w:-]*)"
+        },
+        {
+          "name": "entity.other.attribute-name.class.loom",
+          "match": "\\.[A-Za-z_][\\w-]*"
+        },
+        {
+          "name": "entity.other.attribute-name.id.loom",
+          "match": "#[A-Za-z_][\\w-]*"
+        },
+        {
+          "name": "keyword.control.loom",
+          "match": "^\\s*(if|else if|else|each|slot)\\b"
+        }
+      ]
+    }
+  }
+}

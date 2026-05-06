@@ -48,6 +48,8 @@ export function warnReactBehavior(
         severity: 'warning',
         message: `Event modifier ".${mod}" has no React equivalent and is silently dropped. Use Vue or Svelte if you need native "${mod}" support.`,
         span: fallbackSpan,
+        source: 'codegen',
+        suggestion: `Remove ".${mod}" for React output or switch this component to Vue/Svelte.`,
       })
     }
   }
@@ -68,6 +70,8 @@ export function warnMissingLoopKey(
       severity: 'warning',
       message: `"each ${listExpr}" has no key binding. Add ": key {expr}" on the loop child for stable reconciliation.`,
       span: fallbackSpan,
+      source: 'codegen',
+      suggestion: 'Add a stable ": key {expr}" binding on the first loop child.',
     },
   ]
 }
