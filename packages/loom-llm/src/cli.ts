@@ -12,6 +12,7 @@ import {
 import { applyPatchBundleToFile, previewApplyPatchBundle } from './patch/apply.js'
 import { readPatchBundleFromFile } from './patch/ops.js'
 import { renderLoomProjection } from './projector/loom.js'
+import type { ProjectionFormat, ProjectionMode } from './types.js'
 
 type CliIo = {
   stdout(value: string): void
@@ -52,11 +53,14 @@ export function runCli(argv: string[], io = defaultIo()): number {
       case 'show': {
         const input = parsed.positionals[0]
         if (!input)
-          return fail('Usage: loom-llm show <file.loom> --mode outline|edit [--blocks id1,id2]')
-        const mode = (flagValue(parsed.flags, '--mode') ?? 'outline') as 'outline' | 'edit'
+          return fail('Usage: loom-llm show <file.loom> --mode index|outline|edit [--format markdown|caveman|ultra] [--blocks id1,id2]')
+        const mode = parseMode(flagValue(parsed.flags, '--mode') ?? 'outline')
+        const format = parseFormat(flagValue(parsed.flags, '--format') ?? (parsed.flags.has('--ultra') ? 'ultra' : 'markdown'))
+        if (!mode) return fail('Invalid --mode. Expected index, outline, or edit.')
+        if (!format) return fail('Invalid --format. Expected markdown, caveman, or ultra.')
         const blocks = splitCsv(flagValue(parsed.flags, '--blocks'))
         const projection = ensureProjectionForPath({ root, cacheDir, input })
-        const rendered = renderLoomProjection(projection, mode, { blocks })
+        const rendered = renderLoomProjection(projection, mode, { blocks, format })
         if (jsonMode) {
           io.stdout(`${JSON.stringify({ projection, rendered }, null, 2)}\n`)
         } else {
@@ -104,7 +108,7 @@ export function runCli(argv: string[], io = defaultIo()): number {
       case 'diff': {
         const input = parsed.positionals[0]
         if (!input)
-          return fail('Usage: loom-llm diff <file.loom> [--ops <patch.json> | --mode outline|edit]')
+          return fail('Usage: loom-llm diff <file.loom> [--ops <patch.json> | --mode index|outline|edit --format markdown|caveman|ultra]')
         const filePath = resolvePath(root, input)
         const source = readFileSync(filePath, 'utf8')
         const opsPath = flagValue(parsed.flags, '--ops')
@@ -118,14 +122,17 @@ export function runCli(argv: string[], io = defaultIo()): number {
           })
           diff = createUnifiedDiff(source, preview.nextSource, input, `${input} (patched)`)
         } else {
-          const mode = (flagValue(parsed.flags, '--mode') ?? 'outline') as 'outline' | 'edit'
+          const mode = parseMode(flagValue(parsed.flags, '--mode') ?? 'outline')
+          const format = parseFormat(flagValue(parsed.flags, '--format') ?? (parsed.flags.has('--ultra') ? 'ultra' : 'markdown'))
+          if (!mode) return fail('Invalid --mode. Expected index, outline, or edit.')
+          if (!format) return fail('Invalid --format. Expected markdown, caveman, or ultra.')
           const blocks = splitCsv(flagValue(parsed.flags, '--blocks'))
           const projection = ensureProjectionForPath({ root, cacheDir, input })
           diff = createUnifiedDiff(
             source,
-            renderLoomProjection(projection, mode, { blocks }),
+            renderLoomProjection(projection, mode, { blocks, format }),
             input,
-            `${input} (${mode})`,
+            `${input} (${mode}:${format})`,
           )
         }
 
@@ -202,6 +209,14 @@ function splitCsv(value?: string): string[] | undefined {
     .split(',')
     .map((part) => part.trim())
     .filter(Boolean)
+}
+
+function parseMode(value: string): ProjectionMode | undefined {
+  return value === 'index' || value === 'outline' || value === 'edit' ? value : undefined
+}
+
+function parseFormat(value: string): ProjectionFormat | undefined {
+  return value === 'markdown' || value === 'caveman' || value === 'ultra' ? value : undefined
 }
 
 function resolvePath(root: string | undefined, input: string): string {

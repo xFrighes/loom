@@ -176,8 +176,11 @@ The `.loom-llm/` directory is disposable cache, never source.
 ### 2. Projection
 A projection is a derived, token-optimized view of a file or component. It is not meant to be committed or edited by humans.
 
-There should be two primary projection modes:
+There should be three projection modes:
 
+- `index`
+  - For diff-only and request-more-context workflows
+  - Shows file identity, source hash, and addressable block ranges only
 - `outline`
   - For navigation and understanding
   - Shows symbols, blocks, node tree, imports, diagnostics, and token estimates
@@ -209,6 +212,27 @@ Reason:
 
 - JSON is easier to validate and diff internally
 - Markdown is cheaper and more model-friendly than dumping raw JSON into context
+
+For ultra-low-context passes, the renderer also supports Caveman format via `--format caveman` or `--format ultra`. Caveman keeps the same cache and patch identities but strips prose labels:
+
+```txt
+@src/Counter.loom
+#Counter|m:outline|h:abc123
+P:name,items|S:count|C:isBig
+B:
+ props:0|props|L1-3
+ markup:0|markup|L8-17
+T:
+ div.card
+  h1
+  button
+  if:isBig
+   each:item<-items
+```
+
+Focused Caveman edit renders filter symbols to names used by selected blocks by default, so a `--blocks markup:0` request avoids unrelated props/state. Use `symbols: "all"` through the API when a caller needs the complete symbol table.
+
+The workspace manifest includes a `globalContext.symbols` section for repeated symbols across files. This lets callers send one shared entry like `G1: props.theme -> src/Card.loom,src/Panel.loom` and refer to it from multiple file projections instead of repeating the same cross-file symbol facts in every prompt.
 
 ### Internal projection shape
 
@@ -280,7 +304,8 @@ Behavior:
 
 - Hash source files
 - Rebuild only stale projections
-- Record token estimates for `source`, `outline`, and `edit` modes
+- Record token estimates for `source`, `index`, `outline`, `edit`, and Caveman variants
+- Record repeated cross-file symbols in `globalContext.symbols`
 
 #### `loom-llm show <path>`
 Render an LLM-facing view.
@@ -290,13 +315,17 @@ Example:
 ```bash
 loom-llm show src/components/Button.loom --mode outline
 loom-llm show src/components/Button.loom --mode edit
+loom-llm show src/components/Button.loom --mode outline --format caveman
+loom-llm show src/components/Button.loom --mode index --format ultra
 ```
 
 Behavior:
 
+- `index` returns file/block metadata only
 - `outline` returns structure and summaries only
 - `edit` returns only canonical editable blocks
 - `--blocks logic:0,markup:0` can narrow context further
+- `--format caveman|ultra` strips prose labels and uses symbolic lines
 
 #### `loom-llm apply <path>`
 Apply patch ops back to source.

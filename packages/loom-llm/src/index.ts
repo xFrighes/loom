@@ -30,10 +30,13 @@ export { assertValidPatchBundle, validatePatchBundle } from './patch/validate.js
 export { applyPatchBundleToFile, previewApplyPatchBundle } from './patch/apply.js'
 export { estimateTokenCount } from './tokens.js'
 export type {
+  GlobalContext,
+  GlobalContextSymbol,
   IndexManifest,
   IndexManifestEntry,
   IndexResult,
   LoomProjection,
+  ProjectionFormat,
   ProjectionMode,
   ProjectionRenderOptions,
   ProjectionSymbols,

@@ -102,6 +102,103 @@ describe('loom-llm', () => {
     expect(focusedEditTokens).toBeLessThan(projection.tokenEstimates.source)
   })
 
+  it('renders caveman projections with compact symbols, tree, and token estimates', () => {
+    const source = [
+      '- props',
+      '  name: string',
+      '  items: string[]',
+      '',
+      '- state',
+      '  count: number = 0',
+      '',
+      '- computed',
+      '  isBig = count > 10',
+      '',
+      '- pug',
+      '  div.card',
+      '    h1 Hello {name}',
+      '    button',
+      '      @click',
+      '        count++',
+      '      + Increment',
+      '    if isBig',
+      '      ul',
+      '        each item in items',
+      '          li {item}',
+    ].join('\n')
+    const { root, relativePath } = createWorkspace(source, 'Counter.loom')
+    const projection = ensureProjectionForPath({ root, input: relativePath })
+
+    const markdown = renderLoomProjection(projection, 'outline')
+    const caveman = renderLoomProjection(projection, 'outline', { format: 'caveman' })
+    const index = renderLoomProjection(projection, 'index', { format: 'caveman' })
+
+    expect(caveman).toContain('@Counter.loom')
+    expect(caveman).toContain('P:name,items|S:count|C:isBig')
+    expect(caveman).toContain('T:')
+    expect(caveman).toContain('div.card')
+    expect(caveman).toContain('each:item<-items')
+    expect(index).toContain('m:index')
+    expect(index).not.toContain('T:')
+    expect(projection.tokenEstimates.cavemanOutline).toBeLessThan(estimateTokenCount(markdown))
+  })
+
+  it('filters unused symbols from focused caveman edits by default', () => {
+    const source = [
+      '- props',
+      '  title: string',
+      '  ignored: string',
+      '',
+      '- ts',
+      '  const count = 0',
+      '',
+      '- pug',
+      '  h1 {title}',
+    ].join('\n')
+    const { root, relativePath } = createWorkspace(source)
+    const projection = ensureProjectionForPath({ root, input: relativePath })
+
+    const edit = renderLoomProjection(projection, 'edit', {
+      blocks: ['markup:0'],
+      format: 'caveman',
+    })
+
+    expect(edit).toContain('P:title')
+    expect(edit).not.toContain('ignored')
+    expect(edit).toContain('[markup:0]')
+  })
+
+  it('records repeated cross-file symbols once in global context', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'loom-llm-global-'))
+    activeWorkspaces.push(root)
+    mkdirSync(path.join(root, 'src'), { recursive: true })
+    writeFileSync(
+      path.join(root, 'src/Card.loom'),
+      ['- props', '  theme: Theme', '', '- pug', '  Button {theme}'].join('\n'),
+      'utf8',
+    )
+    writeFileSync(
+      path.join(root, 'src/Panel.loom'),
+      ['- props', '  theme: Theme', '', '- pug', '  Button {theme}'].join('\n'),
+      'utf8',
+    )
+
+    const result = indexWorkspace({ root })
+
+    expect(result.manifest.globalContext.symbols).toContainEqual({
+      id: 'G1',
+      kind: 'props',
+      name: 'theme',
+      files: ['src/Card.loom', 'src/Panel.loom'],
+    })
+    expect(result.manifest.globalContext.symbols).toContainEqual({
+      id: 'G2',
+      kind: 'components',
+      name: 'Button',
+      files: ['src/Card.loom', 'src/Panel.loom'],
+    })
+  })
+
   it('applies block replacement patches and preserves a valid file', () => {
     const source = ['- ts', '  let count = 0', '', '- pug', '  button', '    Count: {count}'].join(
       '\n',
@@ -251,6 +348,35 @@ describe('loom-llm', () => {
     const output = read()
     expect(exitCode).toBe(0)
     expect(output.stdout).toContain(`# File: ${relativePath}`)
+    expect(output.stderr).toBe('')
+  })
+
+  it('exposes ultra caveman projections through the CLI', () => {
+    const source = ['- props', '  label: string', '', '- pug', '  button {label}'].join('\n')
+    const { root, relativePath } = createWorkspace(source)
+    const { io, read } = createIo()
+
+    const exitCode = runCli(
+      [
+        'node',
+        'loom-llm',
+        'show',
+        relativePath,
+        '--root',
+        root,
+        '--mode',
+        'outline',
+        '--format',
+        'ultra',
+      ],
+      io,
+    )
+
+    const output = read()
+    expect(exitCode).toBe(0)
+    expect(output.stdout).toContain(`@${relativePath}`)
+    expect(output.stdout).toContain('P:label')
+    expect(output.stdout).not.toContain('# File:')
     expect(output.stderr).toBe('')
   })
 

@@ -1,6 +1,8 @@
 import type { CompilerDiagnostic, LoomMarkupNodeRef, LoomTopLevelBlock } from '@loom-lang/compiler'
 
-export type ProjectionMode = 'outline' | 'edit'
+export type ProjectionMode = 'outline' | 'edit' | 'index'
+
+export type ProjectionFormat = 'markdown' | 'caveman' | 'ultra'
 
 export type ProjectionSymbols = {
   imports: string[]
@@ -11,10 +13,25 @@ export type ProjectionSymbols = {
   components: string[]
 }
 
+export type GlobalContextSymbol = {
+  id: string
+  kind: keyof ProjectionSymbols
+  name: string
+  files: string[]
+}
+
+export type GlobalContext = {
+  symbols: GlobalContextSymbol[]
+}
+
 export type TokenEstimates = {
   source: number
+  index: number
   outline: number
   edit: number
+  cavemanIndex: number
+  cavemanOutline: number
+  cavemanEdit: number
 }
 
 export type LoomProjection = {
@@ -33,6 +50,8 @@ export type LoomProjection = {
 
 export type ProjectionRenderOptions = {
   blocks?: string[]
+  format?: ProjectionFormat
+  symbols?: 'all' | 'used'
 }
 
 export type IndexManifestEntry = {
@@ -49,6 +68,7 @@ export type IndexManifest = {
   version: 1
   root: string
   generatedAt: string
+  globalContext: GlobalContext
   files: IndexManifestEntry[]
 }
 

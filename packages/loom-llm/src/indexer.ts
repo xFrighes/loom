@@ -13,10 +13,12 @@ import {
 } from './cache.js'
 import { createLoomProjection } from './projector/loom.js'
 import type {
+  GlobalContext,
   IndexManifest,
   IndexManifestEntry,
   IndexResult,
   LoomProjection,
+  ProjectionSymbols,
   VerifyFileResult,
   VerifyTargetResult,
 } from './types.js'
@@ -99,6 +101,7 @@ export function indexWorkspace(options: IndexOptions = {}): IndexResult {
     version: 1,
     root,
     generatedAt: new Date().toISOString(),
+    globalContext: buildGlobalContext(cacheRoot, nextEntries),
     files: nextEntries,
   }
 
@@ -140,13 +143,15 @@ export function ensureProjectionForPath(options: ProjectionLookupOptions): LoomP
     generatedAt: projection.generatedAt,
   })
 
+  const files = [...nextEntries.values()].sort((left, right) =>
+    left.sourcePath.localeCompare(right.sourcePath),
+  )
   writeManifest(cacheRoot, {
     version: 1,
     root,
     generatedAt: new Date().toISOString(),
-    files: [...nextEntries.values()].sort((left, right) =>
-      left.sourcePath.localeCompare(right.sourcePath),
-    ),
+    globalContext: buildGlobalContext(cacheRoot, files),
+    files,
   })
 
   return projection
@@ -262,5 +267,50 @@ function formatCompileError(error: unknown): string {
   if (error instanceof Error) return error.message
   return String(error)
 }
+
+function buildGlobalContext(cacheRoot: string, entries: IndexManifestEntry[]): GlobalContext {
+  const refs = new Map<string, { kind: keyof ProjectionSymbols; name: string; files: Set<string> }>()
+
+  for (const entry of entries) {
+    const projection = readProjection(cacheRoot, entry.cacheFile)
+    if (!projection) continue
+
+    for (const kind of GLOBAL_SYMBOL_KINDS) {
+      for (const name of projection.symbols[kind]) {
+        const key = `${kind}:${name}`
+        const existing = refs.get(key)
+        if (existing) {
+          existing.files.add(entry.sourcePath)
+        } else {
+          refs.set(key, { kind, name, files: new Set([entry.sourcePath]) })
+        }
+      }
+    }
+  }
+
+  const symbols = [...refs.values()]
+    .filter((ref) => ref.files.size > 1)
+    .sort((left, right) => {
+      const kindOrder = GLOBAL_SYMBOL_KINDS.indexOf(left.kind) - GLOBAL_SYMBOL_KINDS.indexOf(right.kind)
+      return kindOrder !== 0 ? kindOrder : left.name.localeCompare(right.name)
+    })
+    .map((ref, index) => ({
+      id: `G${index + 1}`,
+      kind: ref.kind,
+      name: ref.name,
+      files: [...ref.files].sort(),
+    }))
+
+  return { symbols }
+}
+
+const GLOBAL_SYMBOL_KINDS = [
+  'imports',
+  'props',
+  'state',
+  'computed',
+  'elements',
+  'components',
+] satisfies (keyof ProjectionSymbols)[]
 
 const IGNORED_DIRECTORIES = new Set(['.git', '.loom-llm', 'dist', 'node_modules'])
