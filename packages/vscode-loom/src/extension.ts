@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import * as vscode from 'vscode'
 import { LanguageClient } from 'vscode-languageclient/node'
+import { convertSnippetForEditor, type CodemodConversionKind } from './commands.js'
 import { isSupportedPreviewTarget, resolveLoomTools } from './config.js'
 
 const execFileAsync = promisify(execFile)
@@ -50,6 +51,26 @@ export async function activate(context: vscode.ExtensionContext) {
     )
     panel.webview.html = renderPreview(stdout, tools.previewTarget)
   }))
+
+  context.subscriptions.push(vscode.commands.registerCommand('loom.pasteAsLoomHtml', async () => {
+    const source = await vscode.env.clipboard.readText()
+    await convertSourceAndReplaceSelection(source, 'html')
+  }))
+
+  context.subscriptions.push(vscode.commands.registerCommand('loom.pasteAsLoomJsx', async () => {
+    const source = await vscode.env.clipboard.readText()
+    await convertSourceAndReplaceSelection(source, 'jsx')
+  }))
+
+  context.subscriptions.push(vscode.commands.registerCommand('loom.convertSelectionToLoomHtml', async () => {
+    const editor = vscode.window.activeTextEditor
+    if (!editor || editor.document.languageId !== 'loom') return
+    if (editor.selection.isEmpty) {
+      await vscode.window.showWarningMessage('Select HTML before running Loom conversion.')
+      return
+    }
+    await convertSourceAndReplaceSelection(editor.document.getText(editor.selection), 'html')
+  }))
 }
 
 export async function deactivate() {
@@ -81,8 +102,37 @@ function currentTools() {
   return resolveLoomTools({
     languageServerPath: config.get('languageServer.path', 'loom-language-server'),
     compilerPath: config.get('compiler.path', 'loomc'),
+    codemodPath: config.get('codemod.path', 'loom-codemod'),
     previewTarget: isSupportedPreviewTarget(previewTarget) ? previewTarget : 'react',
   }, workspaceRoot)
+}
+
+async function convertSourceAndReplaceSelection(source: string, from: CodemodConversionKind): Promise<void> {
+  const editor = vscode.window.activeTextEditor
+  if (!editor || editor.document.languageId !== 'loom') return
+  if (source.trim().length === 0) {
+    await vscode.window.showWarningMessage('No source text available for Loom conversion.')
+    return
+  }
+
+  const result = await convertSnippetForEditor({
+    codemodPath: currentTools().codemodPath,
+    source,
+    from,
+  })
+
+  if (!result.ok) {
+    await vscode.window.showErrorMessage(`Loom conversion failed: ${result.error}`)
+    return
+  }
+
+  await editor.edit((edit) => {
+    edit.replace(editor.selection, result.source)
+  })
+
+  if (result.warningSummary) {
+    await vscode.window.showWarningMessage(`Loom conversion warning: ${result.warningSummary}`)
+  }
 }
 
 function renderPreview(code: string, target: string): string {

@@ -4,6 +4,22 @@ Loom is an indentation-based meta-syntax that compiles to React TSX, Vue 3 SFC, 
 
 ---
 
+## Indentation safety
+
+Markup structure is defined by indentation. The compiler accepts existing files conservatively, but diagnostics warn when markup indentation uses tabs, mixed whitespace, or non-2-space levels.
+
+Void HTML elements cannot contain children. If a line is accidentally indented under `input`, `img`, `br`, `hr`, `meta`, `link`, or another void element, Loom reports `loom/void-element-children` because the child is almost always meant to be a sibling.
+
+```loom
+- pug
+input
+button Submit
+```
+
+Use the formatter to normalize indentation before reviewing structural changes.
+
+---
+
 ## Zones
 
 | Header | Purpose |

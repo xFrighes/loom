@@ -16,6 +16,8 @@ The `- state` zone declares mutable reactive variables.
 
 - `name: type [= defaultValue]`
 - Variables declared here are mutable within the component's logic.
+- Portable mutations are intentionally limited to direct assignment, `++`, `--`, and compound assignment on the state identifier.
+- Member-path mutations and mutating collection methods such as `items.push(...)` produce diagnostics because targets do not share the same update semantics.
 
 ---
 
@@ -61,6 +63,7 @@ Instead of a generic `- ts` block for everything, Loom provides specific zones f
 - `- computed` → `useMemo` hooks with dependency arrays.
 - `- onMount` → `useEffect` with an empty dependency array.
 - **Assignment Transformation**: The compiler transforms assignments to state variables (e.g., `count++`) into setter calls (e.g., `setCount(prev => prev + 1)`).
+- **Guardrails**: Mutating a property or calling a mutating method on state emits `loom/reactivity-mutation` so the code can be rewritten as an immutable update.
 
 ### Vue Target
 
@@ -82,3 +85,4 @@ Instead of a generic `- ts` block for everything, Loom provides specific zones f
 - **Portability**: Components can be compiled to any target without changing logic.
 - **Conciseness**: Avoids boilerplate like `useState`, `setX`, `.value`, and dependency arrays.
 - **Safety**: The compiler can validate state mutations and dependency tracking at build time.
+- **Escape hatch**: Advanced target-specific state logic can remain in `- ts` or `- js` and use the native framework APIs directly.

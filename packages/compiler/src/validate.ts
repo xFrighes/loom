@@ -3,6 +3,7 @@ import type {
   ControlNode,
   DataAttr,
   ElementNode,
+  LogicStatement,
   LoomFile,
   MarkupNode,
   PropDecl,
@@ -112,6 +113,10 @@ function suggestFix(code: string): string | undefined {
       return 'Replace eval or Function with explicit typed logic.'
     case 'loom/bind-expression':
       return 'Use a writable identifier or member path, such as value, form.email, or items[index].name.'
+    case 'loom/void-element-children':
+      return 'Move nested content to a sibling element or wrap it in a non-void parent.'
+    case 'loom/reactivity-mutation':
+      return 'Use direct state assignment, ++, --, or compound assignment; move advanced mutations into target-specific logic.'
     default:
       if (code.endsWith('-name')) return 'Use a valid JavaScript identifier.'
       return undefined
@@ -133,6 +138,7 @@ export function validate(file: LoomFile, options: ValidateOptions = {}): Compile
     diagnostics.push(...validateComputed(computed))
   }
 
+  diagnostics.push(...validatePortableReactivity(file))
   diagnostics.push(...validateMarkupList(file.markup ?? [], undefined, options))
 
   return diagnostics
@@ -249,6 +255,14 @@ function validateNode(
 function validateElement(node: ElementNode, options: ValidateOptions): CompilerDiagnostic[] {
   const diagnostics: CompilerDiagnostic[] = []
 
+  if (VOID_ELEMENTS.has(node.tag) && node.children.some((child) => child.kind !== 'comment')) {
+    diagnostics.push(...diagnostic(
+      'loom/void-element-children',
+      `Void element "${node.tag}" cannot contain child markup. This usually means a sibling is indented too far.`,
+      node.span,
+    ))
+  }
+
   if (node.data) {
     diagnostics.push(...validateAttrs(node.data))
     if (options.security) diagnostics.push(...scanSecurityAttrs(node))
@@ -266,6 +280,75 @@ function validateElement(node: ElementNode, options: ValidateOptions): CompilerD
   diagnostics.push(...validateMarkupList(node.children, node, options))
 
   return diagnostics
+}
+
+function validatePortableReactivity(file: LoomFile): CompilerDiagnostic[] {
+  const stateNames = new Set((file.state ?? []).map((state) => state.name).filter(Boolean))
+  if (stateNames.size === 0) return []
+
+  const diagnostics: CompilerDiagnostic[] = []
+  for (const statement of collectLogicStatements(file)) {
+    diagnostics.push(...scanStateMutation(statement.src, stateNames, statement.span))
+  }
+  return diagnostics
+}
+
+function collectLogicStatements(file: LoomFile): LogicStatement[] {
+  const statements: LogicStatement[] = []
+  statements.push(...(file.logic?.statements ?? []))
+  statements.push(...(file.onMount ?? []))
+  statements.push(...(file.onUpdate ?? []))
+  statements.push(...(file.onUnmount ?? []))
+  collectMarkupLogic(file.markup ?? [], statements)
+  return statements
+}
+
+function collectMarkupLogic(nodes: MarkupNode[], statements: LogicStatement[]): void {
+  for (const node of nodes) {
+    if (node.kind === 'element') {
+      for (const behavior of node.behaviors ?? []) {
+        statements.push(...behavior.body)
+      }
+      collectMarkupLogic(node.children, statements)
+    } else if (node.kind === 'if' || node.kind === 'elseif') {
+      collectMarkupLogic(node.consequent, statements)
+      if (node.alternate) collectMarkupLogic([node.alternate], statements)
+    } else if (node.kind === 'else') {
+      collectMarkupLogic(node.children, statements)
+    } else if (node.kind === 'each') {
+      collectMarkupLogic(node.children, statements)
+    }
+  }
+}
+
+function scanStateMutation(
+  src: string,
+  stateNames: Set<string>,
+  span: SourceSpan | undefined,
+): CompilerDiagnostic[] {
+  const diagnostics: CompilerDiagnostic[] = []
+  const mutatingMethods = 'copyWithin|fill|pop|push|reverse|shift|sort|splice|unshift'
+
+  for (const name of stateNames) {
+    const escaped = escapeRegExp(name)
+    const memberAssignment = new RegExp(`\\b${escaped}\\s*\\.\\s*[A-Za-z_$][\\w$]*(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*)*\\s*(?:=|[+\\-*/%&|^?]{1,3}=)`)
+    const mutatingCall = new RegExp(`\\b${escaped}\\s*\\.\\s*(?:${mutatingMethods})\\s*\\(`)
+
+    if (memberAssignment.test(src) || mutatingCall.test(src)) {
+      diagnostics.push(...diagnostic(
+        'loom/reactivity-mutation',
+        `State "${name}" is mutated through a member path or mutating method that is not portable across targets.`,
+        span,
+        'warning',
+      ))
+    }
+  }
+
+  return diagnostics
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function validateA11yElement(node: ElementNode): CompilerDiagnostic[] {
@@ -425,6 +508,23 @@ const KNOWN_ARIA_ROLES = new Set([
   'tab',
   'tabpanel',
   'textbox',
+])
+
+const VOID_ELEMENTS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
 ])
 
 function findAttr(node: ElementNode, name: string): DataAttr | undefined {

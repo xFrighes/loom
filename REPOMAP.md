@@ -1,6 +1,6 @@
 # Loom Repository Map
 
-Generated: 2026-05-26T20:57:44.041Z
+Generated: 2026-06-03T18:05:04.027Z
 
 ## 📦 @loom-lang/codemod
 Path: `packages/codemod`
@@ -11,9 +11,17 @@ Purpose: CLI codemod tool to convert React components to Loom
 // src/index.ts
 export interface CodemodOptions {
 // src/index.ts
+export type ConversionSource = 'jsx' | 'html'
+// src/index.ts
+export interface SourceConversionOptions {
+// src/index.ts
+export type SourceConversionReport = {
+// src/index.ts
 export type MigrationFinding = {
 // src/index.ts
 export type MigrationReport = {
+// src/index.ts
+`export const Snippet = () => (${options.source})`,
 // src/index.ts
 export function formatMigrationReport(report: MigrationReport): string {
 // 
@@ -490,6 +498,22 @@ export function resolveLoomTools(settings: LoomExtensionSettings, workspaceRoot?
 export function resolveToolPath(value: string, workspaceRoot?: string): string {
 // src/config.ts
 export function isSupportedPreviewTarget(value: string): value is ResolvedLoomTools['previewTarget'] {
+// src/commands.ts
+export type CodemodConversionKind = 'html' | 'jsx'
+// src/commands.ts
+export type CodemodExecutionResult = {
+// src/commands.ts
+export type CodemodRunner = (
+// src/commands.ts
+export type CodemodSnippetOptions = {
+// src/commands.ts
+export type EditorConversionResult =
+// src/commands.ts
+export function buildCodemodArgs(sourcePath: string, from: CodemodConversionKind): string[] {
+// src/commands.ts
+export function summarizeCodemodWarnings(stderr: string): string | undefined {
+// src/commands.ts
+export function readActionableError(error: unknown): string {
 // 
 
 ```

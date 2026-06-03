@@ -37,7 +37,7 @@ import { ReactTarget } from './codegen/react.js'
 import { VueTarget } from './codegen/vue.js'
 import { SvelteTarget } from './codegen/svelte.js'
 import type { CompileResult } from './codegen/target.js'
-import type { LoomFile } from './ast.js'
+import type { LoomFile, SourceSpan } from './ast.js'
 import { hasErrors, validate, type CompilerDiagnostic, type ValidateOptions } from './validate.js'
 import { formatLoom } from './printer.js'
 import {
@@ -97,7 +97,10 @@ export class CompileError extends Error {
 export function analyze(src: string, options: AnalyzeOptions = {}): AnalyzeResult {
   try {
     const file = parse(src)
-    const diagnostics = validate(file, options)
+    const diagnostics = [
+      ...validate(file, options),
+      ...analyzeIndentationStyle(src),
+    ]
     return { file, diagnostics }
   } catch (error) {
     if (error instanceof ParseError) {
@@ -161,6 +164,17 @@ export function compile(src: string, options: CompileOptions): CompileResult {
     }
   }
 
+  const validationWarnings = diagnostics.filter((diagnostic) => diagnostic.severity === 'warning')
+  if (validationWarnings.length > 0) {
+    result = {
+      ...result,
+      warnings: [
+        ...(result.warnings ?? []),
+        ...validationWarnings,
+      ],
+    }
+  }
+
   if (options.bundleBudgetBytes !== undefined) {
     const size = Buffer.byteLength(result.code + (result.css ?? ''), 'utf8')
     if (size > options.bundleBudgetBytes) {
@@ -185,6 +199,78 @@ export function compile(src: string, options: CompileOptions): CompileResult {
   }
 
   return finalizeAdvancedResult(result, transformedFile, options)
+}
+
+function analyzeIndentationStyle(src: string): CompilerDiagnostic[] {
+  const diagnostics: CompilerDiagnostic[] = []
+  const lines = src.split('\n')
+  let offset = 0
+  let inPug = true
+  let seenContext = false
+
+  for (let index = 0; index < lines.length; index++) {
+    const rawLine = lines[index]
+    const line = index + 1
+    const trimmed = rawLine.trim()
+
+    const contextMatch = trimmed.match(/^- ([A-Za-z][\w-]*)(?:\s|$)/)
+    if (contextMatch && rawLine.search(/\S/) === 0) {
+      seenContext = true
+      inPug = contextMatch[1] === 'pug'
+      offset += rawLine.length + 1
+      continue
+    }
+
+    if (trimmed === '') {
+      offset += rawLine.length + 1
+      continue
+    }
+
+    if (!seenContext || inPug) {
+      const indentText = rawLine.match(/^[ \t]*/)?.[0] ?? ''
+      const column = indentText.length + 1
+      const span = spanForLine(line, 1, Math.max(1, column), offset)
+
+      if (indentText.includes('\t') && indentText.includes(' ')) {
+        diagnostics.push(indentationDiagnostic(
+          'Mixed tabs and spaces in Loom markup indentation.',
+          span,
+        ))
+      } else if (indentText.includes('\t')) {
+        diagnostics.push(indentationDiagnostic(
+          'Tabs are accepted but discouraged in Loom markup indentation.',
+          span,
+        ))
+      } else if (indentText.length > 0 && indentText.length % 2 !== 0) {
+        diagnostics.push(indentationDiagnostic(
+          'Loom markup indentation should use multiples of two spaces.',
+          span,
+        ))
+      }
+    }
+
+    offset += rawLine.length + 1
+  }
+
+  return diagnostics
+}
+
+function indentationDiagnostic(message: string, span: SourceSpan): CompilerDiagnostic {
+  return {
+    code: 'loom/indentation-style',
+    severity: 'warning',
+    message,
+    span,
+    source: 'validator',
+    suggestion: 'Use the Loom formatter to normalize markup indentation to two spaces.',
+  }
+}
+
+function spanForLine(line: number, startColumn: number, endColumn: number, lineOffset: number): SourceSpan {
+  return {
+    start: { line, column: startColumn, offset: lineOffset + startColumn - 1 },
+    end: { line, column: endColumn, offset: lineOffset + endColumn - 1 },
+  }
 }
 
 function validateCompileOptions(options: CompileOptions): void {

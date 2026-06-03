@@ -30,6 +30,7 @@ Goal: Production-grade stability and ecosystem maturity.
 - [x] **Loom Doctor:** Add `loom doctor` to detect broken package versions, missing bundler config, WASM/NAPI fallback issues, and stale generated artifacts.
 - [x] **Migration Experience:** Extend the codemod into a guided migration report that scores React components, flags unsupported patterns, and links to fixes.
 - [x] **Benchmark Dashboard:** Publish compiler speed, output size, and rebuild latency comparisons against handwritten React/Vue/Svelte examples.
+- [x] **Adoption Hardening:** Add indentation guardrails, HTML/JSX paste conversion, portable reactivity diagnostics, and docs for the supported escape hatches.
 
 ### 🦀 Rust Core & Performance
 - [x] **Performance Tuning:** Optimize NAPI/WASM overhead for large-scale projects.

@@ -149,6 +149,23 @@ To migrate an entire project to Loom, follow these recommended steps:
 3.  **Layouts and Pages:** Once the core components are in Loom, consider using Loom for layouts and pages.
 4.  **Full LoomKit Integration:** Finally, evaluate if switching to LoomKit's file-system-based routing and SSR features is beneficial for your project.
 
+### Paste conversion
+
+Use the codemod for copy-pasted JSX or HTML snippets before hand-editing:
+
+```bash
+loom-codemod Button.tsx --from jsx --stdout
+loom-codemod snippet.html --from html --stdout
+```
+
+HTML conversion handles static tags, classes, ids, attributes, text, and simple nesting. Unsupported constructs are preserved as migration comments so they can be reviewed explicitly.
+
+### Reactivity boundaries
+
+Portable Loom state supports direct assignment, `++`, `--`, compound assignment, computed expressions, and event-handler mutations of declared `- state` variables. Complex object or array mutations such as `items.push(...)` are reported because React, Vue, and Svelte do not share the same update semantics.
+
+When logic is framework-specific or too dynamic for portable lowering, keep it in the existing framework APIs inside `- ts` or `- js` and compile Loom to that target.
+
 ## Summary
 
 Loom's interoperability with React, Vue, and Svelte makes it an excellent choice for incremental adoption. By following these steps and strategies, you can begin leveraging Loom's concise syntax and meta-framework features without the need for a full rewrite.

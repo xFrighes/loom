@@ -16,7 +16,10 @@
   ],
   "activationEvents": [
     "onLanguage:loom",
-    "onCommand:loom.preview"
+    "onCommand:loom.preview",
+    "onCommand:loom.pasteAsLoomHtml",
+    "onCommand:loom.pasteAsLoomJsx",
+    "onCommand:loom.convertSelectionToLoomHtml"
   ],
   "main": "./dist/extension.cjs",
   "contributes": {
@@ -49,6 +52,18 @@
       {
         "command": "loom.restartLanguageServer",
         "title": "Loom: Restart Language Server"
+      },
+      {
+        "command": "loom.pasteAsLoomHtml",
+        "title": "Loom: Paste Clipboard as HTML"
+      },
+      {
+        "command": "loom.pasteAsLoomJsx",
+        "title": "Loom: Paste Clipboard as JSX"
+      },
+      {
+        "command": "loom.convertSelectionToLoomHtml",
+        "title": "Loom: Convert Selection from HTML"
       }
     ],
     "configuration": {
@@ -63,6 +78,11 @@
           "type": "string",
           "default": "loomc",
           "description": "Path to the loomc executable."
+        },
+        "loom.codemod.path": {
+          "type": "string",
+          "default": "loom-codemod",
+          "description": "Path to the loom-codemod executable."
         },
         "loom.preview.target": {
           "type": "string",

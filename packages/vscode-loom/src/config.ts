@@ -3,12 +3,14 @@ import path from 'node:path'
 export type LoomExtensionSettings = {
   languageServerPath?: string
   compilerPath?: string
+  codemodPath?: string
   previewTarget?: 'react' | 'vue' | 'svelte'
 }
 
 export type ResolvedLoomTools = {
   languageServerPath: string
   compilerPath: string
+  codemodPath: string
   previewTarget: 'react' | 'vue' | 'svelte'
 }
 
@@ -16,6 +18,7 @@ export function resolveLoomTools(settings: LoomExtensionSettings, workspaceRoot?
   return {
     languageServerPath: resolveToolPath(settings.languageServerPath ?? 'loom-language-server', workspaceRoot),
     compilerPath: resolveToolPath(settings.compilerPath ?? 'loomc', workspaceRoot),
+    codemodPath: resolveToolPath(settings.codemodPath ?? 'loom-codemod', workspaceRoot),
     previewTarget: settings.previewTarget ?? 'react',
   }
 }

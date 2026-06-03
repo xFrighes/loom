@@ -66,4 +66,43 @@ describe('validation', () => {
     expect(formatDiagnostic(diagnostics[0]!)).toContain('loom/control-flow-placement')
     expect(formatDiagnostic(diagnostics[0]!)).toContain('2:1')
   })
+
+  it('reports child markup under void elements', () => {
+    const file = parse('- pug\ninput\n  button Submit')
+    const diagnostics = validate(file)
+
+    expect(diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'loom/void-element-children' }),
+    ]))
+  })
+
+  it('allows void elements followed by correctly indented siblings', () => {
+    const file = parse('- pug\ninput\nbutton Submit')
+    const diagnostics = validate(file)
+
+    expect(diagnostics.map((diagnostic) => diagnostic.code)).not.toContain('loom/void-element-children')
+  })
+
+  it('warns about non-standard markup indentation style', () => {
+    const { diagnostics } = analyze('- pug\ndiv\n   button Submit')
+
+    expect(diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'loom/indentation-style', severity: 'warning' }),
+    ]))
+  })
+
+  it('warns about non-portable state member mutations', () => {
+    const { diagnostics } = analyze(`- state
+  items: string[] = []
+
+- pug
+button
+  @click
+    items.push('x')
+`)
+
+    expect(diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'loom/reactivity-mutation', severity: 'warning' }),
+    ]))
+  })
 })
