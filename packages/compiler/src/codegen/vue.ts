@@ -460,11 +460,7 @@ class VueGenContext {
 
     const fullBody = beh.body.map((s) => s.src).join('\n')
     const transformed = transformVueLogic(fullBody, file, locals)
-    const bodyLines = transformed.split('\n').filter((l) => l.trim())
-    const rawHandler =
-      bodyLines.length === 1
-        ? bodyLines[0].trim()
-        : `() => { ${bodyLines.map((l) => l.trim()).join('; ')} }`
+    const rawHandler = formatVueHandler(transformed)
 
     return `@${event}${modifierStr}="${escapeVueAttrExpr(rawHandler)}"`
   }
@@ -535,6 +531,21 @@ function transformVueLogic(src: string, file: LoomFile, additionalLocals: Set<st
   }
 
   return out
+}
+
+function formatVueHandler(src: string): string {
+  const sourceFile = ts.createSourceFile('handler.ts', src, ts.ScriptTarget.Latest, true)
+  const statements = sourceFile.statements.filter((statement) => statement.getText(sourceFile).trim())
+  if (statements.length === 0) return '() => {}'
+  if (statements.length === 1 && ts.isExpressionStatement(statements[0])) {
+    return statements[0].expression.getText(sourceFile)
+  }
+  return `() => { ${statements
+    .map((s) => {
+      const text = s.getText(sourceFile).trim()
+      return text.endsWith(';') ? text : text + ';'
+    })
+    .join(' ')} }`
 }
 
 function buildVueProps(props: PropDecl[], generics?: string): string {

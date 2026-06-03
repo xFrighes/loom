@@ -1,4 +1,5 @@
 import ts from 'typescript'
+import { isAssignableBindingExpression } from '../codegen/bindings.js'
 import type {
   LoomFile,
   PropDecl,
@@ -921,6 +922,11 @@ function renderDataAttr(attr: DataAttr, stateNames?: Set<string>): string {
     case 'as':
       return '' // handled separately
     case 'bind': {
+      if (!isAssignableBindingExpression(attr.expr)) {
+        // This should have been caught by validation, but as a safety measure in codegen:
+        return `${toReactAttrName(attr.name)}={${attr.expr}}`
+      }
+
       const valueProp = `${toReactAttrName(attr.name)}={${attr.expr}}`
       // Derive setter: if expr is a known state var, use set<Name>; else generic handler
       const isState = stateNames?.has(attr.expr)

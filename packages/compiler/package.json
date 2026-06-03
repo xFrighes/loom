@@ -56,6 +56,8 @@
     "benchmark:flame": "0x -o -D flamegraph -- node --import tsx scripts/benchmark.ts"
   },
   "dependencies": {
+    "@types/sanitize-html": "^2.16.1",
+    "sanitize-html": "^2.17.3",
     "typescript": "^5.4.0"
   },
   "devDependencies": {

@@ -2,6 +2,17 @@
 
 Status: **Beta** | Version: **0.1.0** | Environment: **Ready**
 
+---
+
+## 🚦 Agent Mission Control
+AI Agents should use these markers to track and update task progress:
+- `[ ]` Todo / Not Started
+- `[/]` In Progress
+- `[x]` Done / Verified
+- `[!]` Blocked / Requires Attention
+
+---
+
 Loom is a framework-agnostic UI language compiling to React, Vue, and Svelte.
 
 ---

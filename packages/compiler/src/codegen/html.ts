@@ -1,15 +1,26 @@
-const DANGEROUS_PROTOCOL = /^\s*javascript:/i
+import sanitizeHtml from 'sanitize-html'
 
 export function sanitizeStaticHtml(value: string): string {
-  return value
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
-    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(
-      /\s+(href|src|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi,
-      (match, name: string, doubleQuoted: string | undefined, singleQuoted: string | undefined, bare: string | undefined) => {
-        const raw = doubleQuoted ?? singleQuoted ?? bare ?? ''
-        if (!DANGEROUS_PROTOCOL.test(raw)) return match
-        return ` ${name}="#"`
-      },
-    )
+  return sanitizeHtml(value, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+      'img',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+    ]),
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      '*': ['class', 'id', 'title', 'aria-label', 'aria-describedby'],
+      a: ['href', 'name', 'target', 'rel', 'title'],
+      img: ['src', 'srcset', 'alt', 'title', 'width', 'height', 'loading'],
+    },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowedSchemesByTag: {
+      img: ['http', 'https'],
+    },
+    allowProtocolRelative: false,
+  })
 }

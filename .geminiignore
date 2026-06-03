@@ -1,0 +1,31 @@
+# Ignore build artifacts
+dist/
+target/
+*.node
+*.wasm
+
+# Ignore logs and cache
+*.log
+.turbo/
+.tsbuildinfo
+node_modules/
+.venv/
+__pycache__/
+
+# Ignore large lock files
+pnpm-lock.yaml
+bun.lock
+Cargo.lock
+
+# Ignore IDE and OS noise
+.vscode/
+.idea/
+.DS_Store
+
+# Ignore temporary/debug files
+debug_expr.js
+debug-codegen.mjs
+repro_*.mjs
+token_benchmark.mjs
+updates.md
+ci.yml.bak

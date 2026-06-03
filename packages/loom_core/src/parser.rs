@@ -669,7 +669,6 @@ fn parse_dimensions_and_children(s: &mut TokenStream, node: &mut ElementNode, _p
             _ => {
                 let children = parse_markup_children(s, tok.indent)?;
                 node.children.extend(children);
-                break;
             }
         }
     }

@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, globSync, lstatSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { analyze, compile } from '@loom-lang/compiler'
 import type { CompilerDiagnostic } from '@loom-lang/compiler'
@@ -224,23 +224,10 @@ function collectFromInput(root: string, absolutePath: string): string[] {
 }
 
 function walkForLoomFiles(directory: string): string[] {
-  const files: string[] = []
-
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const absolutePath = path.join(directory, entry.name)
-
-    if (entry.isDirectory()) {
-      if (IGNORED_DIRECTORIES.has(entry.name)) continue
-      files.push(...walkForLoomFiles(absolutePath))
-      continue
-    }
-
-    if (entry.isFile() && absolutePath.endsWith('.loom')) {
-      files.push(absolutePath)
-    }
-  }
-
-  return files
+  return globSync('**/*.loom', {
+    cwd: directory,
+    exclude: [...IGNORED_DIRECTORIES].map((name) => `**/${name}/**`),
+  }).map((entry) => path.join(directory, String(entry)))
 }
 
 function resolveRoot(root?: string): string {

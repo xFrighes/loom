@@ -10,6 +10,7 @@ pub use lexer::{tokenize, LexError, LexerResult, Token, TK};
 pub use parser::{parse, ParseError};
 
 use napi_derive::napi;
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 #[napi(object)]
@@ -21,7 +22,7 @@ pub struct BridgeStats {
 
 fn parse_json_string(src: &str) -> String {
     match parse(src) {
-        Ok(file) => serde_json::to_string(&file).unwrap(),
+        Ok(file) => to_json_string(&file),
         Err(err) => serde_json::json!({
             "error": err.message,
             "line": err.span.start.line,
@@ -32,7 +33,33 @@ fn parse_json_string(src: &str) -> String {
 }
 
 fn tokenize_json_string(src: &str) -> String {
-    serde_json::to_string(&tokenize(src)).unwrap()
+    to_json_string(&tokenize(src))
+}
+
+fn to_json_string<T: Serialize>(value: &T) -> String {
+    serde_json::to_string(value).unwrap_or_else(|err| {
+        serde_json::json!({
+            "error": format!("serialization failed: {err}")
+        })
+        .to_string()
+    })
+}
+
+fn to_json_value<T: Serialize>(value: T) -> serde_json::Value {
+    serde_json::to_value(value).unwrap_or_else(|err| {
+        serde_json::json!({
+            "error": format!("serialization failed: {err}")
+        })
+    })
+}
+
+fn to_js_value<T: Serialize>(value: &T) -> JsValue {
+    serde_wasm_bindgen::to_value(value).unwrap_or_else(|err| {
+        serde_wasm_bindgen::to_value(&serde_json::json!({
+            "error": format!("serialization failed: {err}")
+        }))
+        .unwrap_or(JsValue::NULL)
+    })
 }
 
 #[napi]
@@ -52,7 +79,7 @@ pub fn napi_tokenize_many_json(inputs: Vec<String>) -> Vec<String> {
 
 #[wasm_bindgen]
 pub fn wasm_tokenize(src: String) -> JsValue {
-    serde_wasm_bindgen::to_value(&tokenize(&src)).unwrap()
+    to_js_value(&tokenize(&src))
 }
 
 #[wasm_bindgen]
@@ -63,7 +90,7 @@ pub fn wasm_tokenize_json(src: String) -> String {
 #[napi]
 pub fn napi_parse(src: String) -> serde_json::Value {
     match parse(&src) {
-        Ok(file) => serde_json::to_value(file).unwrap(),
+        Ok(file) => to_json_value(file),
         Err(err) => {
             serde_json::json!({ "error": err.message, "line": err.span.start.line })
         }
@@ -94,11 +121,10 @@ pub fn napi_bridge_stats(src: String) -> BridgeStats {
 #[wasm_bindgen]
 pub fn wasm_parse(src: String) -> JsValue {
     match parse(&src) {
-        Ok(file) => serde_wasm_bindgen::to_value(&file).unwrap(),
-        Err(err) => serde_wasm_bindgen::to_value(
+        Ok(file) => to_js_value(&file),
+        Err(err) => to_js_value(
             &serde_json::json!({ "error": err.message, "line": err.span.start.line }),
-        )
-        .unwrap(),
+        ),
     }
 }
 

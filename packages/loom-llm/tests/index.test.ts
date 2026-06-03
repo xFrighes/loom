@@ -199,6 +199,22 @@ describe('loom-llm', () => {
     })
   })
 
+  it('keeps fallback indexing out of ignored large directories', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'loom-llm-ignore-'))
+    activeWorkspaces.push(root)
+    mkdirSync(path.join(root, 'src'), { recursive: true })
+    mkdirSync(path.join(root, 'node_modules', 'large'), { recursive: true })
+    writeFileSync(path.join(root, 'src', 'App.loom'), '- pug\n  div App', 'utf8')
+    for (let index = 0; index < 200; index += 1) {
+      writeFileSync(path.join(root, 'node_modules', 'large', `Ignored${index}.loom`), '- pug\n  div Ignored', 'utf8')
+    }
+
+    const result = indexWorkspace({ root })
+
+    expect(result.indexed).toBe(1)
+    expect(result.manifest.files.map((file) => file.sourcePath)).toEqual(['src/App.loom'])
+  })
+
   it('applies block replacement patches and preserves a valid file', () => {
     const source = ['- ts', '  let count = 0', '', '- pug', '  button', '    Count: {count}'].join(
       '\n',

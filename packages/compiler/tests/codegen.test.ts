@@ -322,6 +322,39 @@ describe('XSS audit', () => {
     }
   })
 
+  it('sanitizes static HTML bypasses across all raw HTML target sinks', () => {
+    const src = [
+      '- pug',
+      'p <img/onload=alert(1) src="x"><a formaction="javascript:alert(1)" href=" JaVaScRiPt:alert(2)">bad</a><img src="data:text/html,<script>alert(3)</script>"><script>alert(4)</script>',
+    ].join('\n')
+
+    for (const target of ['react', 'vue', 'svelte'] as const) {
+      const out = compile(src, { componentName: 'Test', target }).code
+      expect(out).not.toContain('onload')
+      expect(out).not.toContain('formaction')
+      expect(out).not.toContain('javascript:')
+      expect(out).not.toContain('JaVaScRiPt')
+      expect(out).not.toContain('data:text/html')
+      expect(out).not.toContain('<script>')
+    }
+  })
+
+  it('sanitizes Markdown-generated raw HTML across all targets', () => {
+    const src = [
+      '- pug',
+      'md',
+      '  [bad]( JaVaScRiPt:alert(1))',
+      '  ! not image <script>alert(2)</script>',
+    ].join('\n')
+
+    for (const target of ['react', 'vue', 'svelte'] as const) {
+      const out = compile(src, { componentName: 'Doc', target }).code
+      expect(out).not.toContain('javascript:')
+      expect(out).not.toContain('JaVaScRiPt')
+      expect(out).not.toContain('<script>')
+    }
+  })
+
   it('escapes Vue expression attributes that contain string literal quotes', () => {
     const out = compile(
       [
@@ -534,6 +567,32 @@ describe('bind: two-way binding', () => {
     ].join('\n')
     const out = compile(src, { componentName: 'Test', target: 'svelte' }).code
     expect(out).toContain('bind:checked={isActive}')
+  })
+
+  it('rejects non-assignable bind expressions before codegen', () => {
+    const src = [
+      '- pug',
+      'input',
+      '  :',
+      '    bind:value getValue()',
+    ].join('\n')
+
+    expect(() => compile(src, { componentName: 'Test', target: 'react' })).toThrow('loom/bind-expression')
+    expect(() => compile(src, { componentName: 'Test', target: 'vue' })).toThrow('loom/bind-expression')
+    expect(() => compile(src, { componentName: 'Test', target: 'svelte' })).toThrow('loom/bind-expression')
+  })
+
+  it('allows member-path bind expressions across targets', () => {
+    const src = [
+      '- pug',
+      'input',
+      '  :',
+      '    bind:value form.user.name',
+    ].join('\n')
+
+    expect(compile(src, { componentName: 'Test', target: 'react' }).code).toContain('form.user.name = e.target.value')
+    expect(compile(src, { componentName: 'Test', target: 'vue' }).code).toContain('v-model="form.user.name"')
+    expect(compile(src, { componentName: 'Test', target: 'svelte' }).code).toContain('bind:value={form.user.name}')
   })
 })
 

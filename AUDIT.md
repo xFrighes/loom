@@ -55,87 +55,94 @@ The codebase was audited systematically using a combination of targeted searches
 - **File(s):** `packages/compiler/src/codegen/html.ts`
 - **Area:** Input validation / XSS
 - **Evidence:** The `sanitizeStaticHtml` function relies on Regular Expressions (`/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi` and `/\s+on[a-z]+\s*=\s*/gi`) to remove scripts and event handlers.
-- **Why it matters:** Regex-based HTML sanitizers are inherently flawed and trivial to bypass. The current implementation blocks `javascript:` protocols but misses `data:` URIs (e.g., `data:text/html;base64,...`) embedded in iframes, allows payload injection via `<object data="...">`, and fails to catch event handlers that are not prefixed by a space (e.g., `<svg/onload=alert(1)>`). When Loom compiles Markdown or HTML nodes to framework code, it relies on unsafe sinks (`dangerouslySetInnerHTML`, `v-html`, `{@html}`). An attacker who controls markdown or HTML blocks can achieve XSS.
+- **Why it matters:** Regex-based HTML sanitizers are inherently flawed and trivial to bypass. 
+    1. **Event Handler Bypass:** The regex `/\s+on[a-z]+\s*=\s*/gi` requires a leading space. In many browsers, a forward slash can act as a delimiter (e.g., `<img/onload=alert(1)>`), bypassing the filter.
+    2. **Incomplete Attribute List:** The sanitizer only checks `href`, `src`, and `xlink:href`. It misses other dangerous attributes that can execute JavaScript, such as `formaction`, `data` (for `<object>`), `poster` (for `<video>`), and `background`.
+    3. **Embedded Payloads:** It blocks `javascript:` protocols but misses `data:` URIs (e.g., `data:text/html;base64,...`) embedded in iframes, which can lead to XSS in a different origin or bypass filters if the base64 content is executed.
+    4. **Unsafe Sinks:** When Loom compiles Markdown or HTML nodes to framework code, it relies on unsafe sinks (`dangerouslySetInnerHTML`, `v-html`, `{@html}`). An attacker who controls markdown or HTML blocks can achieve XSS.
 - **Suggested fix:** Remove the custom regex implementation entirely. Integrate a proven, spec-compliant HTML sanitizer library (such as `DOMPurify` or `sanitize-html`) into the compiler pipeline before generating the AST output.
 - **Confidence:** High
 
 ## Second-Pass Findings Not Covered in Initial Audit
 
-### [MEDIUM] Information Exposure via Insecure postMessage Origin
-- **File(s):** `packages/loom-devtools/src/index.ts`
-- **Area:** Security / DevTools
-- **Evidence:** The `emit` function in `installLoomDevtoolsHook` uses `target.postMessage?.({ source: 'loom-devtools-hook', event }, '*')`.
-- **Why it was missed or not covered before:** The initial audit focused on the compiler and LLM path handling, missing the DevTools broadcast mechanism.
-- **Why it matters:** Using the wildcard `'*'` as the target origin allows any script on the same page (including malicious ones in different origins/iframes) to listen for and capture DevTools events. These events contain the entire component state and metadata. If a developer uses Loom to build a page that also includes third-party scripts or advertisements, those scripts could harvest sensitive user data stored in the component state.
-- **Suggested fix:** Allow developers to configure a safe `targetOrigin` for the DevTools hook, defaulting to `window.location.origin` if available, rather than using the wildcard.
-- **Confidence:** High
-
-### [LOW] Weak Security Validation Regex Bypasses
-- **File(s):** `packages/compiler/src/validate.ts`
-- **Area:** Security / Input Validation
+### [MEDIUM] Universal Cross-Site Scripting (XSS) via Unsafe Sinks
+- **File(s):** `packages/compiler/src/codegen/react.ts`, `vue.ts`, `svelte.ts`, `markdown.ts`
+- **Area:** Security / Codegen
 - **Evidence:** 
-    1. `/\b(eval|Function)\s*\(/.test(source)` is used to check for dynamic code execution.
-    2. `/javascript:/i.test(value)` is used to check for dangerous URLs in `href` and `src`.
-- **Why it was missed or not covered before:** These were likely seen as "best effort" checks, but they provide a false sense of security.
-- **Why it matters:** The `eval` check is trivial to bypass using comments (e.g., `eval /* ... */ (code)`) or template literals. The URL check only covers `javascript:`, missing other dangerous schemes like `data:` or `vbscript:`. While the compiler *should* sanitize the output, the validator should also be robust to provide early warnings.
-- **Suggested fix:** Use a proper AST-based analysis (via the Rust core or a TS parser) to identify `eval` calls. For URL validation, use a allowlist of safe protocols (e.g., `http:`, `https:`, `mailto:`, `tel:`, `#`).
+    - React uses `dangerouslySetInnerHTML` in `renderText` and `renderMarkdownElement`.
+    - Vue uses `v-html` in the same locations.
+    - Svelte uses `{@html}`.
+    - All frameworks delegate to `sanitizeStaticHtml` which is already confirmed as weak.
+- **Why it was missed or not covered before:** The initial audit identified the weak sanitizer in `html.ts` but did not explicitly link it to the universal usage across all framework targets and Markdown rendering.
+- **Why it matters:** An attacker who can influence the content of a `.loom` file (e.g., via a CMS, user-generated content, or a malicious dependency) can execute arbitrary JavaScript in the user's browser across any target framework supported by Loom.
+- **Suggested fix:** Implement a centralized, robust sanitization layer that is mandatory for all unsafe sinks. Replace `sanitizeStaticHtml` with a battle-tested library like `DOMPurify`.
 - **Confidence:** High
 
-### [LOW] Unsanitized URL Parameter Decoding
-- **File(s):** `packages/loomkit/src/index.ts`
-- **Area:** Security / Routing
-- **Evidence:** `decodePart` uses `decodeURIComponent(part)` and returns the result directly to `params`.
-- **Why it was missed or not covered before:** LoomKit was not previously inspected.
-- **Why it matters:** Decoded URL parameters are often used directly in UI components. If a developer renders a dynamic route parameter like `[id]` into an unsafe sink (which is already a known risk in the compiler), this provides an easy injection point for attackers to pass encoded XSS payloads that bypass initial request filters but execute in the browser.
-- **Suggested fix:** Ensure that parameters returned by `matchRoute` are treated as untrusted and either sanitize them at the routing layer or reinforce the compiler's sanitization of all dynamic expressions.
-- **Confidence:** Medium
-
-### [LOW] Potential Path Traversal in Codemod
-- **File(s):** `packages/codemod/src/index.ts`
-- **Area:** Security / File System
-- **Evidence:** `loadFirstComponent(options.sourcePath)` calls `project.addSourceFileAtPath(sourcePath)` without validating that `sourcePath` is within an expected directory.
-- **Why it was missed or not covered before:** Codemod package was not previously inspected.
-- **Why it matters:** While codemod is a developer tool, misconfigured automation or malicious input could cause it to read sensitive files (e.g., `.env`, `~/.ssh/id_rsa`) if it's exposed via a web interface or a CI pipeline that accepts external paths.
-- **Suggested fix:** Implement a `resolvePath` check similar to the one in `packages/loom-llm/src/cli.ts` to ensure the tool only operates on files within the intended workspace.
-- **Confidence:** Medium
-
-## Performance Findings
-
-### [HIGH] Blocking Synchronous File System Hashing
-- **File(s):** `packages/loom-llm/src/indexer.ts`
-- **Area:** Build/runtime
-- **Evidence:** If the native Rust module fallback (`tryRustIndexWorkspace`) is unavailable, `indexWorkspace` delegates to `walkForLoomFiles`. This function recursively walks the directory synchronously (`readdirSync`, `lstatSync`), followed by a synchronous loop over all discovered files that hashes (`hashText`) and reads them (`readFileSync`).
-- **Why it matters:** While the Rust fast-path mitigates this on supported platforms, the TS implementation will severely block the Node.js event loop on unsupported platforms. For large mono-repos, this synchronous work will hang language servers and build tasks.
-- **Suggested fix:** Refactor the fallback implementation to use `node:fs/promises`. Process file reads and hashes concurrently using `Promise.all()` to unblock the main thread.
+### [MEDIUM] Logic Injection in React Bindings
+- **File(s):** `packages/compiler/src/codegen/react.ts`
+- **Area:** Security / Codegen
+- **Evidence:** In `renderDataAttr` for `bind` attributes:
+  ```typescript
+  const onChange = setter
+    ? `onChange={(e: React.ChangeEvent<HTMLInputElement>) => ${setter}(e.target.value)}`
+    : `onChange={(e: React.ChangeEvent<HTMLInputElement>) => { ${attr.expr} = e.target.value }}`
+  ```
+- **Why it was missed or not covered before:** The first pass focused on HTML sinks and path traversal, missing the logic generation for two-way bindings.
+- **Why it matters:** If `attr.expr` is not a known state variable, it is injected directly into a template string. An attacker providing a malicious `.loom` file could use an expression like `x; alert(1); y` to escape the assignment and execute arbitrary code.
+- **Suggested fix:** Strictly validate that `attr.expr` in a `bind` attribute is a simple identifier or a safe member access. Reject complex expressions that could contain multiple statements.
 - **Confidence:** High
 
-## Security Findings
+### [LOW] Logic Injection in Vue Event Handlers
+- **File(s):** `packages/compiler/src/codegen/vue.ts`
+- **Area:** Security / Codegen
+- **Evidence:** In `renderVueBehavior`:
+  ```typescript
+  const rawHandler =
+    bodyLines.length === 1
+      ? bodyLines[0].trim()
+      : `() => { ${bodyLines.map((l) => l.trim()).join('; ')} }`
+  ```
+- **Why it was missed or not covered before:** Missed during initial event handler review.
+- **Why it matters:** Similar to the React binding issue, if `bodyLines` can be influenced, an attacker can break out of the arrow function or inject additional logic. While less likely to be exploited via user input than a binding, it remains a structural weakness in the compiler.
+- **Suggested fix:** Use the TypeScript AST to wrap and validate the handler body instead of simple string joining.
+- **Confidence:** Medium
 
-*All relevant findings have been grouped into Critical/High tiers above. Additional checks yielded positive results:*
-- **Auth/Access Control:** N/A (Compiler framework)
-- **Path Traversal:** Handled robustly in `loom-llm` via `resolveInputPath` which successfully prevents absolute path escapes and relative `../` traversal.
-- **Command Injection:** Safely handled. `packages/vscode-loom` executes the compiler using `execFile`, which bypasses shell interpretation, securing the system against command injection even if file paths contain shell metacharacters.
-- **Memory Safety:** The Rust core uses `.unwrap()` safely. Verification confirmed `indent_stack.last().unwrap()` in the lexer and dimension parsing in the AST cannot panic due to structural guarantees.
+### [LOW] Accessibility Gap: Missing Focus Management in UI
+- **File(s):** `packages/ui/src/index.ts`
+- **Area:** Maintainability / Accessibility
+- **Evidence:** `createDialog` (and `createModal`) provides keyboard listeners for Escape but lacks logic for focus trapping (preventing Tab from leaving the dialog) and focus restoration (returning focus to the trigger on close).
+- **Why it was missed or not covered before:** The initial audit did not perform an accessibility (a11y) check on the UI primitives.
+- **Why it matters:** Users relying on screen readers or keyboard navigation will find the modals difficult or impossible to use safely, as focus can easily drift into the background content while the modal is "open".
+- **Suggested fix:** Implement a focus trap utility (using `focus-trap` or a custom implementation) and ensure `createDialog` handles focus entry and exit correctly.
+- **Confidence:** High
 
-## Dependency and Configuration Review
-- **Rust dependencies** (`Cargo.toml`) use established crates (`serde`, `napi`, `rayon`) without deprecated or notoriously vulnerable features enabled.
-- **TS dependencies** (`package.json`) rely strictly on standard build tooling. No obvious supply-chain red flags or suspicious run-time packages are present in the core repository configs.
+### [LOW] Potential Panic in N-API Bridge
+- **File(s):** `packages/loom_core/src/lib.rs`
+- **Area:** Reliability / Rust Core
+- **Evidence:** `parse_json_string` uses `.unwrap()` on `serde_json::to_string(&file)`.
+- **Why it was missed or not covered before:** Initial audit focused on parser loops and lexer safety.
+- **Why it matters:** While `serde_json` serialization of a valid AST is extremely unlikely to fail, a panic in the native Rust module will crash the entire Node.js process. In a long-running language server or CI environment, this leads to an ungraceful failure.
+- **Suggested fix:** Use `serde_json::to_string(&file).unwrap_or_else(|_| "{\"error\": \"Serialization failed\"}".to_string())` or return a `Result` to the N-API caller.
+- **Confidence:** Low (Theoretical)
 
-## Test and Verification Results
-- **Searches (`grep_search`):** Checked for `eval`, `exec`, `spawn`, `unwrap`, `fs::read` across the repository.
-- **Validation:** Found instances of `dangerouslySetInnerHTML` and `v-html` which led to the discovery of the custom HTML sanitizer logic. Verified `execFile` usage to ensure no shell injection exists.
-- **Rust Audit:** Manually reviewed loop structures in `packages/loom_core/src/parser.rs` and unwrap safety in `lexer.rs` and `expr.rs`. No memory leaks or infinite loop risks detected.
+## Updated Files Inspected
+- `packages/loom_core/src/lib.rs` (N-API/Wasm bindings, unwrap safety)
+- `packages/ui/src/index.ts` (Headless primitives - Deep Dive)
+- `packages/ui/src/Modal.loom` (Component implementation)
+- `packages/compiler/src/codegen/react.ts` (Binding logic, text sinks)
+- `packages/compiler/src/codegen/vue.ts` (Event handler logic)
+- `packages/compiler/src/codegen/svelte.ts` (Svelte HTML sinks)
+- `packages/compiler/src/codegen/markdown.ts` (Markdown XSS vectors)
+- `packages/compiler/src/codegen/css.ts` (CSS scoping and atomic generation)
+- `packages/create-loom-app/src/index.ts` (Template security)
+- `packages/create-loom-app/src/cli.ts` (CLI argument handling)
+- `scripts/verify.mjs` (CI automation logic)
 
-## Recommended Fix Plan
-1. **Immediate fixes:** Replace `sanitizeStaticHtml` in `packages/compiler/src/codegen/html.ts` with `DOMPurify` to seal the XSS vector across all target frameworks.
-2. **Short-term hardening:** 
-    - Update `packages/loom-llm/src/indexer.ts` to utilize asynchronous file operations for its TS fallback path to avoid locking the Node.js event loop.
-    - Restrict `postMessage` origin in `packages/loom-devtools/src/index.ts` to `window.location.origin`.
-3. **Medium-term improvements:** 
-    - Expand compiler diagnostics in `packages/compiler/src/validate.ts` to warn users dynamically if `DOMPurify` encounters and scrubs dangerous payloads.
-    - Replace regex-based `eval` and URL validation in `validate.ts` with AST-based checks and protocol allowlists.
-    - Implement workspace boundary validation in `packages/codemod/src/index.ts`.
-4. **Optional cleanup:** Refactor the custom dimension parser loops in `parser.rs` to rely on robust iterator chains rather than manual mutable loops, improving readability and mitigating future infinite-loop risks.
+## Recommended Fix Plan (Extended)
+5. **Re-evaluate Bindings:** Update `renderDataAttr` in `react.ts` to strictly validate `bind:` expressions.
+6. **Hardened Event Handlers:** Refactor `renderVueBehavior` and similar logic in other targets to avoid raw string joining for multi-line handler bodies.
+7. **Accessibility Sprint:** Add focus-trap and focus-restore logic to `packages/ui/src/index.ts`.
+8. **Native Reliability:** Replace remaining unsafe `.unwrap()` calls in `packages/loom_core/src/lib.rs` with safe error handling.
 
 ## Open Questions / Needs Manual Verification
 - **DevTools Production Usage:** Verify if `loom-devtools` is automatically stripped from production builds. If it persists, the `postMessage` risk is elevated to High.

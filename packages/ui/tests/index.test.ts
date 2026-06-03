@@ -76,4 +76,37 @@ describe('@loom-lang/ui', () => {
     dialog.getCloseProps().onClick()
     expect(dialog.open).toBe(false)
   })
+
+  it('focuses, traps focus, and restores focus for dialogs when document exists', async () => {
+    const opener = { focus: vi.fn() }
+    vi.stubGlobal('document', { activeElement: opener })
+
+    const first = { focus: vi.fn() }
+    const last = { focus: vi.fn() }
+    const panel = {
+      focus: vi.fn(),
+      querySelectorAll: () => [first, last],
+    }
+
+    const dialog = createDialog()
+    dialog.getPanelProps().ref(panel)
+    dialog.show()
+    await Promise.resolve()
+
+    expect(first.focus).toHaveBeenCalled()
+
+    const preventForward = vi.fn()
+    dialog.getPanelProps().onKeyDown({ key: 'Tab', target: last, preventDefault: preventForward })
+    expect(preventForward).toHaveBeenCalled()
+    expect(first.focus).toHaveBeenCalledTimes(2)
+
+    const preventBackward = vi.fn()
+    dialog.getPanelProps().onKeyDown({ key: 'Tab', shiftKey: true, target: first, preventDefault: preventBackward })
+    expect(preventBackward).toHaveBeenCalled()
+    expect(last.focus).toHaveBeenCalled()
+
+    dialog.hide()
+    expect(opener.focus).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
 })

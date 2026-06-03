@@ -1,0 +1,22 @@
+# Loom Project Instructions
+
+Loom is a framework-agnostic UI language compiling to React, Vue, and Svelte.
+
+## 🏗️ Monorepo Structure
+- `packages/compiler`: Core TS/Rust compiler & Codegen.
+- `packages/loom_core`: Rust-based lexer, parser, and indexer (NAPI-based).
+- `packages/vite-plugin-loom`: Primary bundler integration.
+- `packages/loom-llm`: Token-optimized projection for AI.
+- `docs/architecture`: Architectural specs and RFCs.
+- `examples/`: Starters for React, Vue, and Svelte.
+
+## 🛠️ Key Scripts
+- `bun run verify`: Full health check (build, test, typecheck).
+- `bun run build`: Build all workspace packages.
+- `bun run test`: Run workspace tests.
+
+## 🤖 Agentic Coding Rules
+- **Repository Map:** `REPOMAP.md`.
+- **Source of Truth:** `TODO.md`.
+- **Verification:** Always run `bun run verify`.
+- **Rust Boundary:** `packages/loom_core` is the source of truth for parsing.

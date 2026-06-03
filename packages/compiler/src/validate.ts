@@ -10,6 +10,7 @@ import type {
   ComputedDecl,
   SourceSpan,
 } from './ast.js'
+import { isAssignableBindingExpression } from './codegen/bindings.js'
 
 export type DiagnosticSeverity = 'error' | 'warning'
 export type DiagnosticSource = 'parser' | 'validator' | 'codegen' | 'bundler' | 'doctor'
@@ -109,6 +110,8 @@ function suggestFix(code: string): string | undefined {
       return 'Use http, https, mailto, tel, or a routed internal URL.'
     case 'loom/security-expression':
       return 'Replace eval or Function with explicit typed logic.'
+    case 'loom/bind-expression':
+      return 'Use a writable identifier or member path, such as value, form.email, or items[index].name.'
     default:
       if (code.endsWith('-name')) return 'Use a valid JavaScript identifier.'
       return undefined
@@ -350,6 +353,14 @@ function validateAttrs(attrs: DataAttr[]): CompilerDiagnostic[] {
       }
       asAttr = attr
       continue
+    }
+
+    if (attr.kind === 'bind' && !isAssignableBindingExpression(attr.expr)) {
+      diagnostics.push(...diagnostic(
+        'loom/bind-expression',
+        `bind:${attr.name} must target a writable identifier or member path, not "${attr.expr}".`,
+        attr.span,
+      ))
     }
 
     const existing = seenNames.get(attr.name)

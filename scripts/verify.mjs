@@ -4,9 +4,11 @@ const isFast = process.argv.includes('--fast')
 
 const steps = [
   ['Workspace typecheck', ['bun', 'run', '--filter', '*', 'typecheck']],
-  ['Workspace test', ['bun', 'run', '--filter', '*', '--sequential', 'test']],
+  ['Workspace test', ['bun', 'run', '--sequential', '--filter', '*', 'test']],
   ['Workspace build', ['bun', 'run', '--filter', isFast ? '!*demo' : '*', 'build']],
+  ['Generate REPOMAP.md', ['node', 'scripts/generate-repomap.mjs']],
 ]
+
 
 for (const [label, command] of steps) {
   process.stdout.write(`\n==> ${label}\n`)
