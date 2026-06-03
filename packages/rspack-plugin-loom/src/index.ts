@@ -1,6 +1,6 @@
 import path from 'node:path'
-import { compile } from '@loom-lang/compiler'
-import type { AdvancedCompileOptions } from '@loom-lang/compiler'
+import { compile } from '@loom-ui/compiler'
+import type { AdvancedCompileOptions } from '@loom-ui/compiler'
 
 export type LoomRspackTarget = 'react' | 'vue' | 'svelte'
 
@@ -35,7 +35,7 @@ export function createRspackRule(options: LoomRspackPluginOptions = {}) {
   return {
     test: /\.loom$/,
     use: [{
-      loader: '@loom-lang/rspack-plugin/loader',
+      loader: '@loom-ui/rspack-plugin/loader',
       options,
     }],
   }

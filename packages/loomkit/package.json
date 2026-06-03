@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/kit",
+  "name": "@loom-ui/kit",
   "version": "0.1.0",
   "description": "LoomKit routing and SSR primitives",
   "license": "MIT",

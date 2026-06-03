@@ -64,7 +64,7 @@ LoomKit introduces a standard way to fetch data for pages and layouts using `loa
 
 ```typescript
 // src/routes/blog/[slug]/page.ts
-import type { PageLoad } from '@loom-lang/kit'
+import type { PageLoad } from '@loom-ui/kit'
 
 export const load: PageLoad = async ({ params }) => {
   const post = await db.getPost(params.slug)
@@ -77,7 +77,7 @@ export const load: PageLoad = async ({ params }) => {
 LoomKit is built on top of Vite and utilizes its SSR capabilities.
 
 - **`vite-plugin-loom`:** The core plugin for compiling `.loom` files.
-- **`@loom-lang/kit/vite`:** A Vite plugin that handles routing and SSR orchestration.
+- **`@loom-ui/kit/vite`:** A Vite plugin that handles routing and SSR orchestration.
 - **Development Server:** Uses Vite's HMR and SSR middleware for a fast dev loop.
 - **Production Build:** Generates optimized client and server bundles.
 
@@ -111,7 +111,7 @@ API routes allow defining server-side logic without a corresponding UI. They are
 
 ```typescript
 // src/routes/api/hello/+server.ts
-import { json } from '@loom-lang/kit'
+import { json } from '@loom-ui/kit'
 
 export const GET = async () => {
   return json({ message: 'Hello from LoomKit!' })

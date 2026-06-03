@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/rollup-plugin",
+  "name": "@loom-ui/rollup-plugin",
   "version": "0.1.0",
   "description": "Rollup plugin for compiling .loom components",
   "license": "MIT",
@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-lang/compiler": "workspace:*"
+    "@loom-ui/compiler": "workspace:*"
   },
   "peerDependencies": {
     "rollup": "^4.0.0"

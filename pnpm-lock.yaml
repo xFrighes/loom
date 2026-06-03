@@ -126,7 +126,7 @@ importers:
 
   packages/eslint-plugin-loom:
     dependencies:
-      '@loom-lang/compiler':
+      '@loom-ui/compiler':
         specifier: workspace:*
         version: link:../compiler
     devDependencies:
@@ -148,7 +148,7 @@ importers:
 
   packages/loom-llm:
     dependencies:
-      '@loom-lang/compiler':
+      '@loom-ui/compiler':
         specifier: workspace:*
         version: link:../compiler
     devDependencies:
@@ -167,7 +167,7 @@ importers:
 
   packages/loom-tailwind:
     dependencies:
-      '@loom-lang/compiler':
+      '@loom-ui/compiler':
         specifier: workspace:*
         version: link:../compiler
     devDependencies:
@@ -186,7 +186,7 @@ importers:
 
   packages/loom-testing:
     dependencies:
-      '@loom-lang/compiler':
+      '@loom-ui/compiler':
         specifier: workspace:*
         version: link:../compiler
     devDependencies:
@@ -216,7 +216,7 @@ importers:
       '@ampproject/remapping':
         specifier: ^2.3.0
         version: 2.3.0
-      '@loom-lang/compiler':
+      '@loom-ui/compiler':
         specifier: workspace:*
         version: link:../compiler
     devDependencies:

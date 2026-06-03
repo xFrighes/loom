@@ -1,4 +1,4 @@
-import { analyze, type CompilerDiagnostic, type SourceSpan } from '@loom-lang/compiler'
+import { analyze, type CompilerDiagnostic, type SourceSpan } from '@loom-ui/compiler'
 
 type LoomLintMessage = {
   ruleId: string

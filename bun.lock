@@ -51,7 +51,7 @@
       },
     },
     "packages/codemod": {
-      "name": "@loom-lang/codemod",
+      "name": "@loom-ui/codemod",
       "version": "0.1.0",
       "bin": {
         "loom-codemod": "./dist/cli.js",
@@ -65,7 +65,7 @@
       },
     },
     "packages/compiler": {
-      "name": "@loom-lang/compiler",
+      "name": "@loom-ui/compiler",
       "version": "0.1.0",
       "bin": {
         "loom": "./dist/cli.js",
@@ -101,10 +101,10 @@
       },
     },
     "packages/esbuild-plugin-loom": {
-      "name": "@loom-lang/esbuild-plugin",
+      "name": "@loom-ui/esbuild-plugin",
       "version": "0.1.0",
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -120,7 +120,7 @@
       "name": "eslint-plugin-loom",
       "version": "0.1.0",
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -131,7 +131,7 @@
       },
     },
     "packages/loom-devtools": {
-      "name": "@loom-lang/devtools",
+      "name": "@loom-ui/devtools",
       "version": "0.1.0",
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -141,13 +141,13 @@
       },
     },
     "packages/loom-llm": {
-      "name": "@loom-lang/loom-llm",
+      "name": "@loom-ui/loom-llm",
       "version": "0.1.0",
       "bin": {
         "loom-llm": "./dist/cli.js",
       },
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -157,10 +157,10 @@
       },
     },
     "packages/loom-playground": {
-      "name": "@loom-lang/playground",
+      "name": "@loom-ui/playground",
       "version": "0.1.0",
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -170,10 +170,10 @@
       },
     },
     "packages/loom-tailwind": {
-      "name": "@loom-lang/tailwind",
+      "name": "@loom-ui/tailwind",
       "version": "0.1.0",
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -183,10 +183,10 @@
       },
     },
     "packages/loom-testing": {
-      "name": "@loom-lang/testing",
+      "name": "@loom-ui/testing",
       "version": "0.1.0",
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -196,14 +196,14 @@
       },
     },
     "packages/loom_core": {
-      "name": "@loom-lang/loom_core",
+      "name": "@loom-ui/loom_core",
       "version": "0.1.0",
       "devDependencies": {
         "@napi-rs/cli": "^2.18.4",
       },
     },
     "packages/loomkit": {
-      "name": "@loom-lang/kit",
+      "name": "@loom-ui/kit",
       "version": "0.1.0",
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -213,10 +213,10 @@
       },
     },
     "packages/rollup-plugin-loom": {
-      "name": "@loom-lang/rollup-plugin",
+      "name": "@loom-ui/rollup-plugin",
       "version": "0.1.0",
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -229,10 +229,10 @@
       },
     },
     "packages/rspack-plugin-loom": {
-      "name": "@loom-lang/rspack-plugin",
+      "name": "@loom-ui/rspack-plugin",
       "version": "0.1.0",
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -245,7 +245,7 @@
       },
     },
     "packages/ui": {
-      "name": "@loom-lang/ui",
+      "name": "@loom-ui/ui",
       "version": "0.1.0",
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -259,7 +259,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@ampproject/remapping": "^2.3.0",
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.0.0",
@@ -288,10 +288,10 @@
       },
     },
     "packages/webpack-loader-loom": {
-      "name": "@loom-lang/webpack-loader",
+      "name": "@loom-ui/webpack-loader",
       "version": "0.1.0",
       "dependencies": {
-        "@loom-lang/compiler": "workspace:*",
+        "@loom-ui/compiler": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.19.17",
@@ -447,33 +447,33 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "3.1.2", "@jridgewell/sourcemap-codec": "1.5.5" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@loom-lang/codemod": ["@loom-lang/codemod@workspace:packages/codemod"],
+    "@loom-ui/codemod": ["@loom-ui/codemod@workspace:packages/codemod"],
 
-    "@loom-lang/compiler": ["@loom-lang/compiler@workspace:packages/compiler"],
+    "@loom-ui/compiler": ["@loom-ui/compiler@workspace:packages/compiler"],
 
-    "@loom-lang/devtools": ["@loom-lang/devtools@workspace:packages/loom-devtools"],
+    "@loom-ui/devtools": ["@loom-ui/devtools@workspace:packages/loom-devtools"],
 
-    "@loom-lang/esbuild-plugin": ["@loom-lang/esbuild-plugin@workspace:packages/esbuild-plugin-loom"],
+    "@loom-ui/esbuild-plugin": ["@loom-ui/esbuild-plugin@workspace:packages/esbuild-plugin-loom"],
 
-    "@loom-lang/kit": ["@loom-lang/kit@workspace:packages/loomkit"],
+    "@loom-ui/kit": ["@loom-ui/kit@workspace:packages/loomkit"],
 
-    "@loom-lang/loom-llm": ["@loom-lang/loom-llm@workspace:packages/loom-llm"],
+    "@loom-ui/loom-llm": ["@loom-ui/loom-llm@workspace:packages/loom-llm"],
 
-    "@loom-lang/loom_core": ["@loom-lang/loom_core@workspace:packages/loom_core"],
+    "@loom-ui/loom_core": ["@loom-ui/loom_core@workspace:packages/loom_core"],
 
-    "@loom-lang/playground": ["@loom-lang/playground@workspace:packages/loom-playground"],
+    "@loom-ui/playground": ["@loom-ui/playground@workspace:packages/loom-playground"],
 
-    "@loom-lang/rollup-plugin": ["@loom-lang/rollup-plugin@workspace:packages/rollup-plugin-loom"],
+    "@loom-ui/rollup-plugin": ["@loom-ui/rollup-plugin@workspace:packages/rollup-plugin-loom"],
 
-    "@loom-lang/rspack-plugin": ["@loom-lang/rspack-plugin@workspace:packages/rspack-plugin-loom"],
+    "@loom-ui/rspack-plugin": ["@loom-ui/rspack-plugin@workspace:packages/rspack-plugin-loom"],
 
-    "@loom-lang/tailwind": ["@loom-lang/tailwind@workspace:packages/loom-tailwind"],
+    "@loom-ui/tailwind": ["@loom-ui/tailwind@workspace:packages/loom-tailwind"],
 
-    "@loom-lang/testing": ["@loom-lang/testing@workspace:packages/loom-testing"],
+    "@loom-ui/testing": ["@loom-ui/testing@workspace:packages/loom-testing"],
 
-    "@loom-lang/ui": ["@loom-lang/ui@workspace:packages/ui"],
+    "@loom-ui/ui": ["@loom-ui/ui@workspace:packages/ui"],
 
-    "@loom-lang/webpack-loader": ["@loom-lang/webpack-loader@workspace:packages/webpack-loader-loom"],
+    "@loom-ui/webpack-loader": ["@loom-ui/webpack-loader@workspace:packages/webpack-loader-loom"],
 
     "@module-federation/error-codes": ["@module-federation/error-codes@0.22.0", "", {}, "sha512-xF9SjnEy7vTdx+xekjPCV5cIHOGCkdn3pIxo9vU7gEZMIw0SvAEdsy6Uh17xaCpm8V0FWvR0SZoK9Ik6jGOaug=="],
 

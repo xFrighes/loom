@@ -5,7 +5,7 @@ import {
   extractTailwindClassList,
 } from '../src/index.js'
 
-describe('@loom-lang/tailwind', () => {
+describe('@loom-ui/tailwind', () => {
   it('extracts shorthand classes and static class attrs', () => {
     const source = [
       '- pug',

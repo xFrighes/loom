@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/rspack-plugin",
+  "name": "@loom-ui/rspack-plugin",
   "version": "0.1.0",
   "description": "Rspack plugin and loader helpers for compiling .loom components",
   "license": "MIT",
@@ -32,7 +32,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-lang/compiler": "workspace:*"
+    "@loom-ui/compiler": "workspace:*"
   },
   "peerDependencies": {
     "@rspack/core": "^1.0.0"

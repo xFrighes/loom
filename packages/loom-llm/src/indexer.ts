@@ -1,7 +1,7 @@
 import { existsSync, globSync, lstatSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { analyze, compile } from '@loom-lang/compiler'
-import type { CompilerDiagnostic } from '@loom-lang/compiler'
+import { analyze, compile } from '@loom-ui/compiler'
+import type { CompilerDiagnostic } from '@loom-ui/compiler'
 import {
   ensureCacheLayout,
   hashText,

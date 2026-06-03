@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/loom_core",
+  "name": "@loom-ui/loom_core",
   "version": "0.1.0",
   "description": "Rust-based core for the Loom language",
   "main": "index.js",
@@ -7,7 +7,7 @@
   "napi": {
     "name": "loom_core",
     "package": {
-      "name": "@loom-lang/loom_core"
+      "name": "@loom-ui/loom_core"
     }
   },
   "license": "MIT",

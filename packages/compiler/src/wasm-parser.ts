@@ -7,7 +7,7 @@ let wasmModule: any = null
 
 export async function ensureWasmLoaded(): Promise<void> {
   if (wasmLoaded) return
-  wasmModule = require('@loom-lang/loom_core/wasm')
+  wasmModule = require('@loom-ui/loom_core/wasm')
   await wasmModule.default?.()
   wasmLoaded = true
 }

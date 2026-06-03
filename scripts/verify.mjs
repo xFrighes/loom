@@ -6,6 +6,7 @@ const steps = [
   ['Workspace typecheck', ['bun', 'run', '--filter', '*', 'typecheck']],
   ['Workspace test', ['bun', 'run', '--sequential', '--filter', '*', 'test']],
   ['Workspace build', ['bun', 'run', '--filter', isFast ? '!*demo' : '*', 'build']],
+  ['Workspace docs', ['node', 'scripts/check-doc-snippets.mjs']],
   ['Generate REPOMAP.md', ['node', 'scripts/generate-repomap.mjs']],
 ]
 

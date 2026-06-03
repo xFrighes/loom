@@ -49,7 +49,7 @@ Goal: Production-grade stability and ecosystem maturity.
 
 ### 📖 Documentation & Distribution
 - [ ] **Loom.dev:** Launch the official documentation site with integrated WASM playground.
-- [ ] **Migration Guides:** Step-by-step paths for React, Vue, and Svelte developers.
+- [x] **Migration Guides:** Step-by-step paths for React, Vue, and Svelte developers.
 - [ ] **Automated Release:** NPM publishing with provenance and automated changelogs.
 - [ ] **API Reference Generator:** Generate package and language reference pages from compiler metadata, examples, and exported TypeScript declarations.
 - [ ] **Production Recipes:** Document auth forms, async data, design tokens, head metadata, i18n, and framework interop as copy-pasteable recipes.
@@ -73,22 +73,22 @@ Goal: Production-grade stability and ecosystem maturity.
 
 | Package | Purpose | Status |
 |:---|:---|:---|
-| `@loom-lang/compiler` | Core TS/Rust compiler | Stable |
+| `@loom-ui/compiler` | Core TS/Rust compiler | Stable |
 | `loom_core` | Rust-based lexer, parser, and indexer | Stable |
 | `vite-plugin-loom` | Primary bundler integration | Stable |
-| `@loom-lang/kit` | Meta-framework primitives (Routing/SSR) | Stable |
-| `@loom-lang/devtools` | Unified debugging runtime hooks | Stable |
+| `@loom-ui/kit` | Meta-framework primitives (Routing/SSR) | Stable |
+| `@loom-ui/devtools` | Unified debugging runtime hooks | Stable |
 | `loom-llm` | Token-optimized projection for AI | Stable |
 | `loom-testing` | Framework-agnostic test helpers | Stable |
 | `eslint-plugin-loom` | Linting & static analysis | Stable |
-| `@loom-lang/codemod` | CLI for React-to-Loom migration | Stable |
-| `@loom-lang/tailwind` | Static Tailwind CSS extraction | Stable |
-| `@loom-lang/playground` | Browser-friendly compiler API | Stable |
+| `@loom-ui/codemod` | CLI for React-to-Loom migration | Stable |
+| `@loom-ui/tailwind` | Static Tailwind CSS extraction | Stable |
+| `@loom-ui/playground` | Browser-friendly compiler API | Stable |
 | `rollup-plugin-loom` | Rollup integration | Stable |
 | `esbuild-plugin-loom` | esbuild integration | Stable |
 | `rspack-plugin-loom` | Rspack integration | Stable |
 | `webpack-loader-loom` | Webpack integration | Stable |
-| `@loom-lang/ui` | Headless UI primitives | Stable |
+| `@loom-ui/ui` | Headless UI primitives | Stable |
 
 ---
 
@@ -127,7 +127,7 @@ bun run build            # Build all packages
 bun run test             # Run all tests
 
 # Package Specifics
-bun run --filter @loom-lang/compiler test
+bun run --filter @loom-ui/compiler test
 bun run --filter loom_core test
 bun run --filter vite-plugin-loom build
 ```

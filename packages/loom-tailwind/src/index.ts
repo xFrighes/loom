@@ -1,4 +1,4 @@
-import { parse, type DataAttr, type MarkupNode } from '@loom-lang/compiler'
+import { parse, type DataAttr, type MarkupNode } from '@loom-ui/compiler'
 
 export type TailwindExtraction = {
   classes: string[]

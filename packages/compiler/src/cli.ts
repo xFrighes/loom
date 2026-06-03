@@ -278,7 +278,7 @@ function checkPackageVersions(root: string, fs: DoctorFs): DoctorCheck {
 
   const pkg = JSON.parse(fs.readFile(packagePath, 'utf8'))
   const allDeps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
-  const loomPackages = Object.keys(allDeps).filter((name) => name === 'vite-plugin-loom' || name.startsWith('@loom-lang/'))
+  const loomPackages = Object.keys(allDeps).filter((name) => name === 'vite-plugin-loom' || name.startsWith('@loom-ui/'))
   const broken = loomPackages.filter((name) => String(allDeps[name]).includes('0.0.0'))
 
   if (broken.length > 0) {
@@ -295,7 +295,7 @@ function checkPackageVersions(root: string, fs: DoctorFs): DoctorCheck {
       code: 'loom/doctor-package',
       status: 'warn',
       message: 'No Loom package dependencies found.',
-      suggestion: 'Install vite-plugin-loom or @loom-lang/compiler before compiling .loom files.',
+      suggestion: 'Install vite-plugin-loom or @loom-ui/compiler before compiling .loom files.',
     }
   }
 

@@ -10,7 +10,7 @@ The monorepo is managed with [pnpm workspaces](https://pnpm.io/workspaces).
 
 | Package | Name | Responsibility |
 |---|---|---|
-| `packages/compiler` | `@loom-lang/compiler` | Lexer, parser, AST, validation, code generation, formatter, CLI, language server |
+| `packages/compiler` | `@loom-ui/compiler` | Lexer, parser, AST, validation, code generation, formatter, CLI, language server |
 | `packages/vite-plugin-loom` | `vite-plugin-loom` | Vite transform plugin; delegates to the compiler |
 | `examples/react-demo` | `react-demo` | Smoke app for React integration |
 | `examples/vue-demo` | `vue-demo` | Smoke app for Vue 3 integration |
@@ -30,10 +30,10 @@ pnpm install
 pnpm run verify
 
 # Compiler tests only
-pnpm --filter @loom-lang/compiler test
+pnpm --filter @loom-ui/compiler test
 
 # Compiler typecheck only
-pnpm --filter @loom-lang/compiler typecheck
+pnpm --filter @loom-ui/compiler typecheck
 
 # Vite plugin tests
 pnpm --filter vite-plugin-loom test

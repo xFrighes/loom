@@ -4,7 +4,7 @@ const require = createRequire(import.meta.url)
 let rustCore: any = null
 
 try {
-  rustCore = require('@loom-lang/loom_core')
+  rustCore = require('@loom-ui/loom_core')
 } catch {
   // Fallback handled by the caller
 }

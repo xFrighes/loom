@@ -8,7 +8,7 @@ try {
   // Attempt to load the native binary. 
   // In production, this would be a published package.
   // In development, we look in the build directory.
-  rustCore = require('@loom-lang/loom_core')
+  rustCore = require('@loom-ui/loom_core')
 } catch {
   // Fallback or silent fail if not built yet
   // console.warn('Rust core not found, falling back to TS parser')

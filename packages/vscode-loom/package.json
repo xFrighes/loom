@@ -5,7 +5,7 @@
   "description": "Syntax highlighting, diagnostics, formatting, hovers, snippets, and preview support for Loom files",
   "license": "MIT",
   "type": "module",
-  "publisher": "loom-lang",
+  "publisher": "loom-ui",
   "engines": {
     "vscode": "^1.90.0"
   },

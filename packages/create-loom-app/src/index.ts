@@ -143,7 +143,7 @@ function packageJson(projectName: string, template: StarterTemplate): string {
     devDependencies['@vitejs/plugin-react'] = '^4.3.0'
   }
   if (template === 'loomkit') {
-    dependencies['@loom-lang/kit'] = '^0.1.0'
+    dependencies['@loom-ui/kit'] = '^0.1.0'
   }
   if (template === 'vue') {
     dependencies.vue = '^3.4.0'
@@ -249,7 +249,7 @@ export default defineConfig({
 
 function reactMain(template: StarterTemplate): string {
   const routeImports = template === 'loomkit'
-    ? `import { matchRoute } from '@loom-lang/kit'\nimport { routes } from './routes'\n\nconsole.log(matchRoute(window.location.pathname, routes) ?? routes[0])\n`
+    ? `import { matchRoute } from '@loom-ui/kit'\nimport { routes } from './routes'\n\nconsole.log(matchRoute(window.location.pathname, routes) ?? routes[0])\n`
     : ''
 
   return `import React from 'react'
@@ -276,7 +276,7 @@ new App({ target: document.getElementById('app')! })
 }
 
 function loomkitRoutes(): string {
-  return `import { createRouteEntry } from '@loom-lang/kit'
+  return `import { createRouteEntry } from '@loom-ui/kit'
 
 export const routes = [
   createRouteEntry('src/routes/home/page.loom', { routesRoot: 'src/routes' }),

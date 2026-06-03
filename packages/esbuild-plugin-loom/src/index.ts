@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { readFile } from 'node:fs/promises'
-import { compile } from '@loom-lang/compiler'
-import type { AdvancedCompileOptions, CompileResult } from '@loom-lang/compiler'
+import { compile } from '@loom-ui/compiler'
+import type { AdvancedCompileOptions, CompileResult } from '@loom-ui/compiler'
 
 export type LoomEsbuildTarget = 'react' | 'vue' | 'svelte'
 

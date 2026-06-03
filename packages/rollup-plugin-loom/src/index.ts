@@ -1,6 +1,6 @@
 import path from 'node:path'
-import { compile } from '@loom-lang/compiler'
-import type { AdvancedCompileOptions, CompileResult } from '@loom-lang/compiler'
+import { compile } from '@loom-ui/compiler'
+import type { AdvancedCompileOptions, CompileResult } from '@loom-ui/compiler'
 
 export type LoomRollupTarget = 'react' | 'vue' | 'svelte'
 

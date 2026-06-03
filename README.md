@@ -98,7 +98,7 @@ pnpm run verify
 
 ```bash
 # Run tests for the compiler
-pnpm --filter @loom-lang/compiler test
+pnpm --filter @loom-ui/compiler test
 
 # Build all packages
 pnpm -r build
@@ -106,6 +106,16 @@ pnpm -r build
 # Try the demos
 cd examples/react-demo && pnpm dev
 ```
+
+## 📚 Documentation
+
+- [Syntax guide](./docs/syntax.md)
+- [Incremental adoption overview](./docs/incremental-adoption.md)
+- [Migration guide hub](./docs/migration/index.md)
+- [React migration](./docs/migration/react.md)
+- [Vue migration](./docs/migration/vue.md)
+- [Svelte migration](./docs/migration/svelte.md)
+- [Architecture specs](./docs/architecture/)
 
 ## 🚧 Status
 

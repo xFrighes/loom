@@ -1,6 +1,6 @@
 import path from 'node:path'
-import { analyze, extractLoomStructure } from '@loom-lang/compiler'
-import type { MarkupNode } from '@loom-lang/compiler'
+import { analyze, extractLoomStructure } from '@loom-ui/compiler'
+import type { MarkupNode } from '@loom-ui/compiler'
 import type {
   LoomProjection,
   ProjectionFormat,

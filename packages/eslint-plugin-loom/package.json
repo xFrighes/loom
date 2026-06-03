@@ -43,7 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-lang/compiler": "workspace:*"
+    "@loom-ui/compiler": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",

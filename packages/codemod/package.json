@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/codemod",
+  "name": "@loom-ui/codemod",
   "version": "0.1.0",
   "description": "CLI codemod tool to convert React components to Loom",
   "license": "MIT",

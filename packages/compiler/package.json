@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/compiler",
+  "name": "@loom-ui/compiler",
   "version": "0.1.0",
   "description": "Core compiler for the Loom language",
   "license": "MIT",

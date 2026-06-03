@@ -36,7 +36,7 @@ This epic outlines the 6-step roadmap to incrementally benchmark and port the Lo
 - **Implementation Details**:
   - Initialize `napi-rs` within the `loom_core` workspace.
   - Expose asynchronous Rust functions that accept file contents as strings and return serialized JSON (AST) or compiled framework strings.
-  - Update `@loom-lang/compiler` and the Vite plugin to call the NAPI-RS bridge.
+  - Update `@loom-ui/compiler` and the Vite plugin to call the NAPI-RS bridge.
 
 ## Phase 5: WebAssembly (WASM) Compilation
 **Objective**: Bring the high-performance Rust compiler to the browser for interactive documentation/playgrounds.

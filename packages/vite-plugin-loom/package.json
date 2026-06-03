@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@ampproject/remapping": "^2.3.0",
-    "@loom-lang/compiler": "workspace:*"
+    "@loom-ui/compiler": "workspace:*"
   },
   "peerDependencies": {
     "vite": "^5.0.0"

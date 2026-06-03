@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/esbuild-plugin",
+  "name": "@loom-ui/esbuild-plugin",
   "version": "0.1.0",
   "description": "esbuild plugin for compiling .loom components",
   "license": "MIT",
@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-lang/compiler": "workspace:*"
+    "@loom-ui/compiler": "workspace:*"
   },
   "peerDependencies": {
     "esbuild": "^0.21.0"

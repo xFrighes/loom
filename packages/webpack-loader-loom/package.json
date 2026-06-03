@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/webpack-loader",
+  "name": "@loom-ui/webpack-loader",
   "version": "0.1.0",
   "description": "webpack loader for compiling .loom components",
   "license": "MIT",
@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-lang/compiler": "workspace:*"
+    "@loom-ui/compiler": "workspace:*"
   },
   "peerDependencies": {
     "webpack": "^5.0.0"

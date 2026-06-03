@@ -1,5 +1,5 @@
 {
-  "name": "@loom-lang/loom-llm",
+  "name": "@loom-ui/loom-llm",
   "version": "0.1.0",
   "description": "Projection-and-patch tooling for LLM-safe Loom workflows",
   "license": "MIT",
@@ -46,7 +46,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-lang/compiler": "workspace:*"
+    "@loom-ui/compiler": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",

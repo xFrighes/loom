@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import type { LoomTopLevelBlockKind } from '@loom-lang/compiler'
+import type { LoomTopLevelBlockKind } from '@loom-ui/compiler'
 
 export type ReplaceBlockOp = {
   op: 'replace-block'

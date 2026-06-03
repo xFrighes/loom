@@ -1,8 +1,8 @@
 # Loom Repository Map
 
-Generated: 2026-06-03T18:05:04.027Z
+Generated: 2026-06-03T18:40:06.543Z
 
-## 📦 @loom-lang/codemod
+## 📦 @loom-ui/codemod
 Path: `packages/codemod`
 Purpose: CLI codemod tool to convert React components to Loom
 
@@ -30,7 +30,7 @@ export function formatMigrationReport(report: MigrationReport): string {
 
 ---
 
-## 📦 @loom-lang/compiler
+## 📦 @loom-ui/compiler
 Path: `packages/compiler`
 Purpose: Core compiler for the Loom language
 
@@ -112,7 +112,7 @@ export function runCli(argv = process.argv, io: CliIo = processIo): number {
 
 ---
 
-## 📦 @loom-lang/esbuild-plugin
+## 📦 @loom-ui/esbuild-plugin
 Path: `packages/esbuild-plugin-loom`
 Purpose: esbuild plugin for compiling .loom components
 
@@ -148,7 +148,7 @@ export const loomProcessor: LoomProcessor = {
 
 ---
 
-## 📦 @loom-lang/devtools
+## 📦 @loom-ui/devtools
 Path: `packages/loom-devtools`
 Purpose: Development-only Loom DevTools runtime hook
 
@@ -176,7 +176,7 @@ export function getLoomDevtoolsHook(target: LoomDevtoolsTarget = resolveDefaultT
 
 ---
 
-## 📦 @loom-lang/loom-llm
+## 📦 @loom-ui/loom-llm
 Path: `packages/loom-llm`
 Purpose: Projection-and-patch tooling for LLM-safe Loom workflows
 
@@ -228,7 +228,7 @@ export function verifyLoomSource(source: string, sourcePath: string): VerifyFile
 
 ---
 
-## 📦 @loom-lang/playground
+## 📦 @loom-ui/playground
 Path: `packages/loom-playground`
 Purpose: Browser-friendly Loom playground compiler API
 
@@ -268,7 +268,7 @@ export function applyTutorialLesson(
 
 ---
 
-## 📦 @loom-lang/tailwind
+## 📦 @loom-ui/tailwind
 Path: `packages/loom-tailwind`
 Purpose: Tailwind candidate extraction for .loom files
 
@@ -288,7 +288,7 @@ export function createLoomTailwindExtractor() {
 
 ---
 
-## 📦 @loom-lang/testing
+## 📦 @loom-ui/testing
 Path: `packages/loom-testing`
 Purpose: Testing helpers for Loom fixtures and Vitest assertions
 
@@ -318,7 +318,7 @@ export const loomMatchers = {
 
 ---
 
-## 📦 @loom-lang/loom_core
+## 📦 @loom-ui/loom_core
 Path: `packages/loom_core`
 Purpose: Rust-based core for the Loom language
 
@@ -350,7 +350,7 @@ pub fn napi_bridge_stats(src: String) -> BridgeStats {
 
 ---
 
-## 📦 @loom-lang/kit
+## 📦 @loom-ui/kit
 Path: `packages/loomkit`
 Purpose: LoomKit routing and SSR primitives
 
@@ -384,7 +384,7 @@ export function json(data: unknown, init: ResponseInit = {}): Response {
 
 ---
 
-## 📦 @loom-lang/rollup-plugin
+## 📦 @loom-ui/rollup-plugin
 Path: `packages/rollup-plugin-loom`
 Purpose: Rollup plugin for compiling .loom components
 
@@ -404,7 +404,7 @@ export function compileForRollup(source: string, id: string, target: LoomRollupT
 
 ---
 
-## 📦 @loom-lang/rspack-plugin
+## 📦 @loom-ui/rspack-plugin
 Path: `packages/rspack-plugin-loom`
 Purpose: Rspack plugin and loader helpers for compiling .loom components
 
@@ -426,7 +426,7 @@ export function compileForRspack(source: string, sourceFile: string, options: Lo
 
 ---
 
-## 📦 @loom-lang/ui
+## 📦 @loom-ui/ui
 Path: `packages/ui`
 Purpose: Headless UI primitives for Loom
 
@@ -520,7 +520,7 @@ export function readActionableError(error: unknown): string {
 
 ---
 
-## 📦 @loom-lang/webpack-loader
+## 📦 @loom-ui/webpack-loader
 Path: `packages/webpack-loader-loom`
 Purpose: webpack loader for compiling .loom components
 
