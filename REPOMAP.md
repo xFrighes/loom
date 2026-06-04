@@ -1,6 +1,6 @@
 # Loom Repository Map
 
-Generated: 2026-06-04T20:31:31.530Z
+Generated: 2026-06-04T20:42:11.824Z
 
 ## 📦 @loom-ui/codemod
 Path: `packages/codemod`
