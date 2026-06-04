@@ -4,7 +4,7 @@
   const count = ref(0)
   const items = ['React', 'Vue', 'Svelte']
 
-- pug
+- view
   div.app
     h1 Loom Vue Demo
 

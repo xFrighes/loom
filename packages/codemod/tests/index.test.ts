@@ -22,7 +22,7 @@ describe('codemod', () => {
     expect(result).toContain('onClick: () => void')
     expect(result).toContain('- ts')
     expect(result).toContain('const [count, setCount] = useState(0)')
-    expect(result).toContain('- pug')
+    expect(result).toContain('- view')
     expect(result).toContain('button')
     expect(result).toContain('onClick {handleClick}')
     expect(result).toContain('className "my-button"')
@@ -46,7 +46,7 @@ describe('codemod', () => {
       source: '<div id="hero" class="card primary"><input type="email" placeholder="Email"><button disabled>Join</button></div>',
     })
 
-    expect(result).toContain('- pug')
+    expect(result).toContain('- view')
     expect(result).toContain('div.card.primary#hero')
     expect(result).toContain('input')
     expect(result).toContain('type "email"')
@@ -62,7 +62,7 @@ describe('codemod', () => {
       source: '<section><!-- review copy --><h1>Hello</h1></section>',
     })
 
-    expect(report.source).toContain('- pug')
+    expect(report.source).toContain('- view')
     expect(report.source).toContain('section')
     expect(report.source).toContain('// review copy')
     expect(report.findings).toContainEqual(expect.objectContaining({
@@ -83,7 +83,7 @@ describe('codemod', () => {
       `,
     })
 
-    expect(result).toContain('- pug')
+    expect(result).toContain('- view')
     expect(result).toContain('section')
     expect(result).toContain('className "hero"')
     expect(result).toContain('h1')

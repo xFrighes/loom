@@ -8,7 +8,7 @@ describe('reactivity model lowering', () => {
 - computed
   double = count * 2
 
-- pug
+- view
   button
     @click
       count++

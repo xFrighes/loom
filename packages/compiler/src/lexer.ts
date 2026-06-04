@@ -3,7 +3,7 @@ import type { SourcePosition, SourceSpan } from './ast.js'
 // ─── Token types ─────────────────────────────────────────────────────────────
 
 export const enum TK {
-  CONTEXT_SWITCH = 'CONTEXT_SWITCH', // "- pug", "- ts", etc.
+  CONTEXT_SWITCH = 'CONTEXT_SWITCH', // "- view", "- ts", etc.
   INDENT = 'INDENT',
   DEDENT = 'DEDENT',
   NEWLINE = 'NEWLINE',
@@ -48,7 +48,7 @@ const CONTEXT_SWITCH_NAMES = new Set([
   'onUnmount',
   'ts',
   'js',
-  'pug',
+  'view',
 ])
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ function stripIndent(line: string, amount: number): string {
 /** Classify a trimmed non-empty line into its token type */
 function classifyLine(trimmed: string): TK {
   // Context switch
-  if (/^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|pug)(\s|$)/.test(trimmed))
+  if (/^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|view)(\s|$)/.test(trimmed))
     return TK.CONTEXT_SWITCH
   // Comments
   if (trimmed.startsWith('//')) return TK.COMMENT
@@ -171,9 +171,9 @@ export function tokenize(src: string): LexerResult {
     const lineNum = i + 1
 
     if (rawLine.trim() === '') {
-      if (zone && CONTEXT_SWITCH_NAMES.has(zone) && zone !== 'pug') {
+      if (zone && CONTEXT_SWITCH_NAMES.has(zone) && zone !== 'view') {
         push(TK.RAW_LINE, '', lineNum, 1, 0, span(lineNum, 1, 1, lineOffset))
-      } else if (zone === 'pug') {
+      } else if (zone === 'view') {
         push(TK.NEWLINE, '', lineNum, 1, 0, span(lineNum, 1, 1, lineOffset))
       }
       lineOffset += rawLine.length + 1
@@ -184,14 +184,14 @@ export function tokenize(src: string): LexerResult {
     const trimmed = rawLine.trim()
 
     // ── Context switch detection (col 0) ──────────────────────────────────────
-    const ctxMatch = trimmed.match(/^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|pug)(.*)$/)
+    const ctxMatch = trimmed.match(/^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|view)(.*)$/)
     if (ctxMatch && indent === 0) {
       // Flush any remaining dedents back to 0
       while (indentStack.length > 1) {
         const prev = indentStack.pop()!
         push(TK.DEDENT, '', lineNum, 1, prev, span(lineNum, 1, 1, lineOffset))
       }
-      const zoneName = ctxMatch[1] ?? 'pug'
+      const zoneName = ctxMatch[1] ?? 'view'
       zone = zoneName
       zoneBaseIndent = 0 // Will be set on first content line for raw zones
       rawUntilIndent = null
@@ -200,8 +200,8 @@ export function tokenize(src: string): LexerResult {
       continue
     }
 
-    // ── Raw zones (everything but pug) ────────────────────────────────────────
-    if (zone && CONTEXT_SWITCH_NAMES.has(zone) && zone !== 'pug') {
+    // ── Raw zones (everything but view) ────────────────────────────────────────
+    if (zone && CONTEXT_SWITCH_NAMES.has(zone) && zone !== 'view') {
       if (zoneBaseIndent === 0) zoneBaseIndent = indent
       const strippedLine = stripIndent(rawLine, zoneBaseIndent)
       push(
@@ -216,8 +216,8 @@ export function tokenize(src: string): LexerResult {
       continue
     }
 
-    // ── Pug zone (or pre-zone text) ───────────────────────────────────────────
-    if (zone === 'pug' || zone === null) {
+    // ── View zone (or pre-zone text) ──────────────────────────────────────────
+    if (zone === 'view' || zone === null) {
       emitIndentChanges(indent, lineNum, lineOffset)
       
       if (rawUntilIndent !== null && indent <= rawUntilIndent) {

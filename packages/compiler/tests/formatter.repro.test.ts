@@ -3,7 +3,7 @@ import { formatLoom } from '../src/printer.js'
 
 describe('Loom Formatter Round-trip', () => {
   it('should preserve inline comments after tags', () => {
-    const source = `- pug
+    const source = `- view
 div // this should be a comment
 `
     const formatted = formatLoom(source)

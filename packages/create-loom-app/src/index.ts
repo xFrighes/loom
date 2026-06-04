@@ -289,7 +289,7 @@ function appLoom(template: StarterTemplate): string {
   return `- ts
   const features = ['Zones', 'Dimensions', 'Target switching']
 
-- pug
+- view
   main.app
     ::
       font-family system-ui, sans-serif
@@ -308,7 +308,7 @@ function appLoom(template: StarterTemplate): string {
 }
 
 function loomkitRoutePage(): string {
-  return `- pug
+  return `- view
   section
     h1 Home
     p This route is ready for LoomKit experiments.

@@ -36,10 +36,27 @@ describe('vscode-loom package', () => {
     const snippets = JSON.parse(readFileSync(path.join(packageRoot, 'snippets/loom.json'), 'utf8'))
 
     expect(snippets.Component.body.join('\n')).toContain('- props')
-    expect(snippets.Component.body.join('\n')).toContain('- pug')
+    expect(snippets.Component.body.join('\n')).toContain('- view')
     expect(snippets.State.body.join('\n')).toContain('@click')
     expect(snippets['Style Dimension'].body.join('\n')).toContain('::')
     expect(snippets['Data Dimension'].body.join('\n')).toContain(':')
+  })
+
+  it('ships rich TextMate scopes for Loom-specific syntax', () => {
+    const grammar = JSON.parse(readFileSync(path.join(packageRoot, 'syntaxes/loom.tmLanguage.json'), 'utf8'))
+    const serializedGrammar = JSON.stringify(grammar)
+
+    expect(grammar.scopeName).toBe('source.loom')
+    expect(serializedGrammar).toContain('meta.section.zone.typescript.loom')
+    expect(serializedGrammar).toContain('meta.dimension.data.loom')
+    expect(serializedGrammar).toContain('entity.other.attribute-name.loom')
+    expect(serializedGrammar).toContain('support.type.property-name.css.loom')
+    expect(serializedGrammar).toContain('storage.modifier.event.loom')
+    expect(serializedGrammar).toContain('variable.parameter.iteration.loom')
+    expect(serializedGrammar).toContain('entity.name.type.component.loom')
+    expect(serializedGrammar).toContain('entity.name.section.slot.loom')
+    expect(serializedGrammar).toContain('source.ts')
+    expect(serializedGrammar).toContain('source.css')
   })
 
   it('resolves configured tool paths relative to the workspace', () => {
@@ -80,7 +97,7 @@ describe('vscode-loom package', () => {
     const runner: CodemodRunner = async (command, args) => {
       calls.push({ command, args })
       return {
-        stdout: '- pug\nbutton\n',
+        stdout: '- view\nbutton\n',
         stderr: '[warning] loom-migrate/html-comment: HTML comments were preserved.\n',
       }
     }
@@ -94,7 +111,7 @@ describe('vscode-loom package', () => {
 
     expect(result).toEqual({
       ok: true,
-      source: '- pug\nbutton',
+      source: '- view\nbutton',
       warningSummary: '[warning] loom-migrate/html-comment: HTML comments were preserved.',
     })
     expect(calls[0]?.command).toBe('./bin/loom-codemod')

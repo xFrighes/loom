@@ -52,7 +52,7 @@ type ZoneMatch = {
     | 'onUnmount'
     | 'ts'
     | 'js'
-    | 'pug'
+    | 'view'
   lineIndex: number
   startOffset: number
   bodyStartOffset: number
@@ -102,7 +102,7 @@ export function extractLoomStructure(source: string): LoomStructure {
   }
 
   if (file.markup && file.markup.length > 0) {
-    const markupZone = zoneMap.get('pug')
+    const markupZone = zoneMap.get('view')
     if (markupZone) {
       addBlock('markup', undefined, markupZone)
     } else {
@@ -333,7 +333,7 @@ function scanExplicitZones(source: string, lineStarts: number[]): ZoneMatch[] {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]!
-    const match = line.match(/^- (generics|props|state|computed|onMount|onUpdate|onUnmount|ts|js|pug)\s*$/)
+    const match = line.match(/^- (generics|props|state|computed|onMount|onUpdate|onUnmount|ts|js|view)\s*$/)
     if (!match) continue
 
     const startOffset = lineStarts[index]!

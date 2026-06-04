@@ -39,7 +39,7 @@ describe('vite-plugin-loom', () => {
   })
 
   it('routes React .loom imports through a virtual JS module and CSS module id', async () => {
-    const sourcePath = writeFixture('- pug\ndiv\n  ::\n    color red')
+    const sourcePath = writeFixture('- view\ndiv\n  ::\n    color red')
     const plugin = loom({ target: 'react' })
     plugin.configResolved?.({ plugins: [] } as any)
 
@@ -63,7 +63,7 @@ describe('vite-plugin-loom', () => {
   })
 
   it('routes Vue .loom imports through a virtual .vue module', async () => {
-    const sourcePath = writeFixture('- ts\n  import { ref } from \'vue\'\n- pug\ndiv Hello')
+    const sourcePath = writeFixture('- ts\n  import { ref } from \'vue\'\n- view\ndiv Hello')
     const plugin = loom()
     plugin.configResolved?.({ plugins: [{ name: 'vite:vue' }] } as any)
 
@@ -81,7 +81,7 @@ describe('vite-plugin-loom', () => {
   })
 
   it('routes Svelte .loom imports through a virtual .svelte module', async () => {
-    const sourcePath = writeFixture('- ts\n  let count = 0\n- pug\ndiv {count}')
+    const sourcePath = writeFixture('- ts\n  let count = 0\n- view\ndiv {count}')
     const plugin = loom()
     plugin.configResolved?.({ plugins: [{ name: 'vite-plugin-svelte' }] } as any)
 
@@ -99,7 +99,7 @@ describe('vite-plugin-loom', () => {
   })
 
   it('keeps virtual loom ids stable through resolveId', async () => {
-    const sourcePath = writeFixture('- pug\ndiv')
+    const sourcePath = writeFixture('- view\ndiv')
     const plugin = loom({ target: 'react' })
     plugin.configResolved?.({ plugins: [] } as any)
 
@@ -111,14 +111,14 @@ describe('vite-plugin-loom', () => {
   })
 
   it('recompiles when the source file changes between loads', async () => {
-    const sourcePath = writeFixture('- pug\ndiv First')
+    const sourcePath = writeFixture('- view\ndiv First')
     const plugin = loom({ target: 'react' })
     plugin.configResolved?.({ plugins: [] } as any)
 
     const entryId = `${sourcePath.slice(0, -'.loom'.length)}-loom.js?loom-entry=1&loom-target=react&loom-source=${encodeURIComponent(sourcePath)}`
 
     const first = unwrapLoadResult(await plugin.load!.call(createLoadContext() as any, entryId))
-    writeFileSync(sourcePath, '- pug\ndiv Second', 'utf8')
+    writeFileSync(sourcePath, '- view\ndiv Second', 'utf8')
     const second = unwrapLoadResult(await plugin.load!.call(createLoadContext() as any, entryId))
 
     expect(first).toContain('First')
@@ -127,7 +127,7 @@ describe('vite-plugin-loom', () => {
   })
 
   it('surfaces compiler diagnostics as source-located overlay errors', async () => {
-    const sourcePath = writeFixture('- pug\ndiv\n  :\n    id first\n    id second')
+    const sourcePath = writeFixture('- view\ndiv\n  :\n    id first\n    id second')
     const plugin = loom({ target: 'react' })
     plugin.configResolved?.({ plugins: [] } as any)
     const entryId = `${sourcePath.slice(0, -'.loom'.length)}-loom.js?loom-entry=1&loom-target=react&loom-source=${encodeURIComponent(sourcePath)}`

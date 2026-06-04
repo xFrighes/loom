@@ -11,7 +11,7 @@ Markup structure is defined by indentation. The compiler accepts existing files 
 Void HTML elements cannot contain children. If a line is accidentally indented under `input`, `img`, `br`, `hr`, `meta`, `link`, or another void element, Loom reports `loom/void-element-children` because the child is almost always meant to be a sibling.
 
 ```loom
-- pug
+- view
 input
 button Submit
 ```
@@ -24,7 +24,7 @@ Use the formatter to normalize indentation before reviewing structural changes.
 
 | Header | Purpose |
 |---|---|
-| `- pug` | Markup zone (Loom's template language) |
+| `- view` | Markup zone (Loom's template language) |
 | `- ts` | TypeScript logic zone |
 | `- js` | JavaScript logic zone |
 | `- props` | Component props declarations |
@@ -41,14 +41,14 @@ Zones are separated by a blank line. Any content before the first zone header is
   import { useState } from 'react'
   const [x, setX] = useState(false)
 
-- pug
+- view
   div.container
     h1 Hello {name}
 ```
 
 ---
 
-## Markup zone (`- pug`)
+## Markup zone (`- view`)
 
 ### Tags
 
@@ -240,7 +240,7 @@ Adding `: key {expr}` on the first child enables stable DOM reconciliation. Loop
 ### Slot definition (inside a component)
 
 ```
-- pug
+- view
   div.card
     header
       slot:header
@@ -342,7 +342,7 @@ Syntax: `propName: TypeAnnotation [= defaultValue]`
 - props
   data: T
 
-- pug
+- view
   div
     each item in Object.entries(data)
       span {item[0]}: {String(item[1])}

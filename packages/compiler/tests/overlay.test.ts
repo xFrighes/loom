@@ -7,7 +7,7 @@ import {
 
 describe('diagnostic overlay payloads', () => {
   it('normalizes parser and validator diagnostics for shared overlays', () => {
-    const parsed = analyze('- pug\nelse\n  div Nope')
+    const parsed = analyze('- view\nelse\n  div Nope')
     const overlay = createDiagnosticOverlay(parsed.diagnostics, {
       sourceFile: 'App.loom',
     })

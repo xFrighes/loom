@@ -9,106 +9,106 @@ describe('React codegen', () => {
   }
 
   it('renders a simple element', () => {
-    const out = react('- pug\ndiv Hello')
+    const out = react('- view\ndiv Hello')
     expect(out).toContain('<div>')
     expect(out).toContain('Hello')
   })
 
   it('applies class selector', () => {
-    const out = react('- pug\ndiv.card')
+    const out = react('- view\ndiv.card')
     expect(out).toContain('card')
   })
 
   it('renders static data attr', () => {
-    const out = react('- pug\ninput\n  :\n    type email')
+    const out = react('- view\ninput\n  :\n    type email')
     expect(out).toContain('type="email"')
   })
 
   it('renders dynamic data attr', () => {
-    const out = react('- pug\ninput\n  :\n    disabled {isLoading}')
+    const out = react('- view\ninput\n  :\n    disabled {isLoading}')
     expect(out).toContain('disabled={isLoading}')
   })
 
   it('renders spread attr', () => {
-    const out = react("- pug\ninput\n  :\n    ...register('email')")
+    const out = react("- view\ninput\n  :\n    ...register('email')")
     expect(out).toContain("{...register('email')}")
   })
 
   it('renders @click.prevent', () => {
-    const out = react('- pug\nbutton\n  @click.prevent\n    submit()')
+    const out = react('- view\nbutton\n  @click.prevent\n    submit()')
     expect(out).toContain('onClick=')
     expect(out).toContain('preventDefault')
     expect(out).toContain('submit()')
   })
 
   it('renders @keyup.enter', () => {
-    const out = react("- pug\ninput\n  @keyup.enter\n    search()")
+    const out = react("- view\ninput\n  @keyup.enter\n    search()")
     expect(out).toContain('onKeyUp=')
     expect(out).toContain('Enter')
   })
 
   it('renders if/else as ternary', () => {
-    const out = react('- pug\nif x\n  p A\nelse\n  p B')
+    const out = react('- view\nif x\n  p A\nelse\n  p B')
     expect(out).toContain('x ?')
     expect(out).toContain('<p>')
   })
 
   it('renders each loop as .map()', () => {
-    const out = react('- pug\neach user in users\n  p x')
+    const out = react('- view\neach user in users\n  p x')
     expect(out).toContain('users.map(')
     expect(out).toContain('user')
   })
 
   it('uses explicit loop keys in React', () => {
-    const out = react('- pug\neach user in users by user.id\n  p {user.name}')
+    const out = react('- view\neach user in users by user.id\n  p {user.name}')
     expect(out).toContain('key={user.id}')
   })
 
   it('wraps multiple root nodes in fragment', () => {
-    const out = react('- pug\ndiv a\nspan b')
+    const out = react('- view\ndiv a\nspan b')
     expect(out).toContain('<>')
     expect(out).toContain('</>')
   })
 
   it('renders polymorphic element', () => {
-    const out = react("- pug\nelement\n  :\n    as {href ? 'a' : 'button'}")
+    const out = react("- view\nelement\n  :\n    as {href ? 'a' : 'button'}")
     expect(out).toContain('React.createElement')
   })
 
   it('preserves escaped static attrs in polymorphic props', () => {
-    const out = react("- pug\nelement\n  :\n    as {'button'}\n    title Bob's")
+    const out = react("- view\nelement\n  :\n    as {'button'}\n    title Bob's")
     expect(out).toContain(`"title": "Bob's"`)
   })
 
   it('builds props signature', () => {
-    const out = react("- props\n  name: string\n  count: number = 0\n- pug\ndiv")
+    const out = react("- props\n  name: string\n  count: number = 0\n- view\ndiv")
     expect(out).toContain('name: string')
     expect(out).toContain('count = 0')
   })
 
   it('includes generics in function signature', () => {
-    const out = react('- generics\n  T\n- pug\ndiv')
+    const out = react('- generics\n  T\n- view\ndiv')
     expect(out).toContain('<T>')
   })
 
   it('extracts logic zone imports', () => {
-    const out = react("- ts\n  import { useState } from 'react'\n  const [x] = useState(false)\n- pug\ndiv")
+    const out = react("- ts\n  import { useState } from 'react'\n  const [x] = useState(false)\n- view\ndiv")
     expect(out).toContain("import { useState } from 'react'")
     expect(out).toContain('useState(false)')
   })
 
   it('renders slot-def as {props.children}', () => {
-    const out = react('- pug\ndiv\n  slot')
+    const out = react('- view\ndiv\n  slot')
     expect(out).toContain('{props.children}')
   })
 
   it('renders named slot-def as {props.name}', () => {
-    const out = react('- pug\ndiv\n  slot:nav')
+    const out = react('- view\ndiv\n  slot:nav')
     expect(out).toContain('{props.nav}')
   })
 
   it('keeps a props object available when slots are referenced', () => {
-    const out = react('- props\n  title: string\n- pug\ndiv\n  slot\n  slot:nav')
+    const out = react('- props\n  title: string\n- view\ndiv\n  slot\n  slot:nav')
     expect(out).toContain('function Test(props:')
     expect(out).toContain('const { title } = props')
     expect(out).toContain('{props.children}')
@@ -116,19 +116,19 @@ describe('React codegen', () => {
   })
 
   it('renders inline HTML with dangerouslySetInnerHTML', () => {
-    const out = react('- pug\np Click <a href="/terms">Terms</a>')
+    const out = react('- view\np Click <a href="/terms">Terms</a>')
     expect(out).toContain('dangerouslySetInnerHTML')
   })
 
   it('generates CSS module import when :: is used', () => {
-    const out = react('- pug\ndiv\n  ::\n    color red')
+    const out = react('- view\ndiv\n  ::\n    color red')
     expect(out).toContain("import styles from")
-    const { css } = compile('- pug\ndiv\n  ::\n    color red', { componentName: 'Test', target: 'react' })
+    const { css } = compile('- view\ndiv\n  ::\n    color red', { componentName: 'Test', target: 'react' })
     expect(css).toContain('color: red')
   })
 
   it('preserves authored classes alongside scoped classes', () => {
-    const out = react('- pug\ndiv.card\n  ::\n    color red')
+    const out = react('- view\ndiv.card\n  ::\n    color red')
     expect(out).toContain('"card"')
     expect(out).toContain("styles['_div_2_1_")
   })
@@ -142,74 +142,74 @@ describe('Vue codegen', () => {
   }
 
   it('emits <script setup> block', () => {
-    expect(vue('- pug\ndiv')).toContain('<script setup lang="ts">')
+    expect(vue('- view\ndiv')).toContain('<script setup lang="ts">')
   })
 
   it('emits <template> block', () => {
-    expect(vue('- pug\ndiv')).toContain('<template>')
+    expect(vue('- view\ndiv')).toContain('<template>')
   })
 
   it('renders dynamic binding with ":"', () => {
-    const out = vue('- pug\ninput\n  :\n    disabled {isLoading}')
+    const out = vue('- view\ninput\n  :\n    disabled {isLoading}')
     expect(out).toContain(':disabled="isLoading"')
   })
 
   it('renders spread as v-bind', () => {
-    const out = vue('- pug\ndiv\n  :\n    ...obj')
+    const out = vue('- view\ndiv\n  :\n    ...obj')
     expect(out).toContain('v-bind="obj"')
   })
 
   it('escapes static attribute values', () => {
-    const out = vue('- pug\ndiv\n  :\n    title 5 > "x" & < y')
+    const out = vue('- view\ndiv\n  :\n    title 5 > "x" & < y')
     expect(out).toContain('title="5 &gt; &quot;x&quot; &amp; &lt; y"')
   })
 
   it('renders @click.prevent natively', () => {
-    const out = vue('- pug\nbutton\n  @click.prevent\n    submit()')
+    const out = vue('- view\nbutton\n  @click.prevent\n    submit()')
     expect(out).toContain('@click.prevent')
   })
 
   it('renders if/else with v-if/v-else', () => {
-    const out = vue('- pug\nif x\n  p A\nelse\n  p B')
+    const out = vue('- view\nif x\n  p A\nelse\n  p B')
     expect(out).toContain('v-if')
     expect(out).toContain('v-else')
   })
 
   it('renders each with v-for', () => {
-    const out = vue('- pug\neach user in users\n  p x')
+    const out = vue('- view\neach user in users\n  p x')
     expect(out).toContain('v-for="(user) in users"')
   })
 
   it('renders defineProps', () => {
-    const out = vue('- props\n  name: string\n- pug\ndiv')
+    const out = vue('- props\n  name: string\n- view\ndiv')
     expect(out).toContain('defineProps')
     expect(out).toContain('name: string')
   })
 
   it('renders polymorphic as <component :is>', () => {
-    const out = vue("- pug\nelement\n  :\n    as {href ? 'a' : 'button'}")
+    const out = vue("- view\nelement\n  :\n    as {href ? 'a' : 'button'}")
     expect(out).toContain('<component')
     expect(out).toContain(':is=')
   })
 
   it('renders slot-def as <slot />', () => {
-    const out = vue('- pug\ndiv\n  slot')
+    const out = vue('- view\ndiv\n  slot')
     expect(out).toContain('<slot />')
   })
 
   it('emits <style module> when :: is present', () => {
-    const out = vue('- pug\ndiv\n  ::\n    color red')
+    const out = vue('- view\ndiv\n  ::\n    color red')
     expect(out).toContain('<style module>')
     expect(out).toContain('color: red')
   })
 
   it('uses explicit loop keys in Vue', () => {
-    const out = vue('- pug\neach user in users key {user.id}\n  p {user.name}')
+    const out = vue('- view\neach user in users key {user.id}\n  p {user.name}')
     expect(out).toContain(':key="user.id"')
   })
 
   it('preserves authored classes alongside module-scoped classes', () => {
-    const out = vue('- pug\ndiv.card\n  ::\n    color red')
+    const out = vue('- view\ndiv.card\n  ::\n    color red')
     expect(out).toContain("['card', $style[")
   })
 })
@@ -222,61 +222,61 @@ describe('Svelte codegen', () => {
   }
 
   it('emits <script lang="ts">', () => {
-    expect(svelte('- pug\ndiv')).toContain('<script lang="ts">')
+    expect(svelte('- view\ndiv')).toContain('<script lang="ts">')
   })
 
   it('renders export let props', () => {
-    const out = svelte('- props\n  name: string\n  count: number = 0\n- pug\ndiv')
+    const out = svelte('- props\n  name: string\n  count: number = 0\n- view\ndiv')
     expect(out).toContain('export let name: string')
     expect(out).toContain('export let count: number = 0')
   })
 
   it('renders on:click|preventDefault', () => {
-    const out = svelte('- pug\nbutton\n  @click.prevent\n    submit()')
+    const out = svelte('- view\nbutton\n  @click.prevent\n    submit()')
     expect(out).toContain('on:click|preventDefault=')
   })
 
   it('escapes static attribute values', () => {
-    const out = svelte('- pug\ndiv\n  :\n    title 5 > "x" & < y')
+    const out = svelte('- view\ndiv\n  :\n    title 5 > "x" & < y')
     expect(out).toContain('title="5 &gt; &quot;x&quot; &amp; &lt; y"')
   })
 
   it('renders {#if} blocks', () => {
-    const out = svelte('- pug\nif x\n  p A\nelse\n  p B')
+    const out = svelte('- view\nif x\n  p A\nelse\n  p B')
     expect(out).toContain('{#if x}')
     expect(out).toContain('{:else}')
     expect(out).toContain('{/if}')
   })
 
   it('renders {#each} blocks', () => {
-    const out = svelte('- pug\neach user in users\n  p x')
+    const out = svelte('- view\neach user in users\n  p x')
     expect(out).toContain('{#each users as user')
     expect(out).toContain('{/each}')
   })
 
   it('renders <slot /> for slot-def', () => {
-    const out = svelte('- pug\ndiv\n  slot')
+    const out = svelte('- view\ndiv\n  slot')
     expect(out).toContain('<slot />')
   })
 
   it('renders <svelte:element> for polymorphic', () => {
-    const out = svelte("- pug\nelement\n  :\n    as {href ? 'a' : 'button'}")
+    const out = svelte("- view\nelement\n  :\n    as {href ? 'a' : 'button'}")
     expect(out).toContain('<svelte:element')
   })
 
   it('renders {@html} for inline HTML', () => {
-    const out = svelte('- pug\np Click <a>here</a>')
+    const out = svelte('- view\np Click <a>here</a>')
     expect(out).toContain('@html')
   })
 
   it('embeds styles in <style> block', () => {
-    const out = svelte('- pug\ndiv\n  ::\n    color red')
+    const out = svelte('- view\ndiv\n  ::\n    color red')
     expect(out).toContain('<style>')
     expect(out).toContain('color: red')
   })
 
   it('uses explicit loop keys in Svelte', () => {
-    const out = svelte('- pug\neach user in users by user.id\n  p {user.name}')
+    const out = svelte('- view\neach user in users by user.id\n  p {user.name}')
     expect(out).toContain('{#each users as user (user.id)}')
   })
 })
@@ -285,7 +285,7 @@ describe('Svelte codegen', () => {
 
 describe('XSS audit', () => {
   const payload = [
-    '- pug',
+    '- view',
     'p Hello {name}',
     'a',
     '  :',
@@ -324,7 +324,7 @@ describe('XSS audit', () => {
 
   it('sanitizes static HTML bypasses across all raw HTML target sinks', () => {
     const src = [
-      '- pug',
+      '- view',
       'p <img/onload=alert(1) src="x"><a formaction="javascript:alert(1)" href=" JaVaScRiPt:alert(2)">bad</a><img src="data:text/html,<script>alert(3)</script>"><script>alert(4)</script>',
     ].join('\n')
 
@@ -341,7 +341,7 @@ describe('XSS audit', () => {
 
   it('sanitizes Markdown-generated raw HTML across all targets', () => {
     const src = [
-      '- pug',
+      '- view',
       'md',
       '  [bad]( JaVaScRiPt:alert(1))',
       '  ! not image <script>alert(2)</script>',
@@ -358,7 +358,7 @@ describe('XSS audit', () => {
   it('escapes Vue expression attributes that contain string literal quotes', () => {
     const out = compile(
       [
-        '- pug',
+        '- view',
         'input',
         '  :',
         '    value {message ?? "Untitled"}',
@@ -384,7 +384,7 @@ describe('semantic parity', () => {
     '- onMount',
     '  count += 1',
     '',
-    '- pug',
+    '- view',
     'Panel',
     '  slot:header(item)',
     '    h1 {item.title}',
@@ -439,7 +439,7 @@ describe('semantic parity', () => {
 
 describe('CSS extraction', () => {
   it('expands nested &:hover', () => {
-    const src = '- pug\ndiv\n  ::\n    color red\n    &:hover\n      color blue'
+    const src = '- view\ndiv\n  ::\n    color red\n    &:hover\n      color blue'
     const { css } = compile(src, { componentName: 'Test', target: 'react' })
     expect(css).toContain('color: red')
     expect(css).toContain(':hover')
@@ -447,27 +447,27 @@ describe('CSS extraction', () => {
   })
 
   it('expands @media queries', () => {
-    const src = '- pug\ndiv\n  ::\n    padding 1rem\n    @media (max-width: 768px)\n      padding 0.5rem'
+    const src = '- view\ndiv\n  ::\n    padding 1rem\n    @media (max-width: 768px)\n      padding 0.5rem'
     const { css } = compile(src, { componentName: 'Test', target: 'react' })
     expect(css).toContain('@media (max-width: 768px)')
     expect(css).toContain('padding: 0.5rem')
   })
 
   it('handles :global() escape', () => {
-    const src = '- pug\ndiv\n  ::\n    color red\n    :global(.dark-mode) &\n      color white'
+    const src = '- view\ndiv\n  ::\n    color red\n    :global(.dark-mode) &\n      color white'
     const { css } = compile(src, { componentName: 'Test', target: 'react' })
     expect(css).toContain('.dark-mode')
   })
 
   it('is deterministic across repeated builds', () => {
-    const src = '- pug\ndiv.card\n  ::\n    color red'
+    const src = '- view\ndiv.card\n  ::\n    color red'
     const first = compile(src, { componentName: 'Test', target: 'react' }).css
     const second = compile(src, { componentName: 'Test', target: 'react' }).css
     expect(first).toBe(second)
   })
 
   it('emits atomic CSS utilities when enabled', () => {
-    const src = '- pug\ndiv\n  ::\n    color red\n    padding 1rem'
+    const src = '- view\ndiv\n  ::\n    color red\n    padding 1rem'
     const { code, css } = compile(src, { componentName: 'Test', target: 'react', atomicCss: true })
     expect(css).toContain('._a_')
     expect(css).toContain('color: red')
@@ -480,7 +480,7 @@ describe('CSS extraction', () => {
 
 describe('MDLoom', () => {
   const source = [
-    '- pug',
+    '- view',
     'md',
     '  # Hello',
     '  This is **strong** and [safe](/docs).',
@@ -514,7 +514,7 @@ describe('bind: two-way binding', () => {
       '- state',
       '  query: string = ""',
       '',
-      '- pug',
+      '- view',
       'input',
       '  :',
       '    bind:value query',
@@ -527,7 +527,7 @@ describe('bind: two-way binding', () => {
 
   it('renders bind:value as v-model in Vue', () => {
     const src = [
-      '- pug',
+      '- view',
       'input',
       '  :',
       '    bind:value query',
@@ -538,7 +538,7 @@ describe('bind: two-way binding', () => {
 
   it('renders bind:checked as v-model:checked in Vue', () => {
     const src = [
-      '- pug',
+      '- view',
       'input',
       '  :',
       '    bind:checked isActive',
@@ -549,7 +549,7 @@ describe('bind: two-way binding', () => {
 
   it('renders bind:value as bind:value={expr} in Svelte', () => {
     const src = [
-      '- pug',
+      '- view',
       'input',
       '  :',
       '    bind:value query',
@@ -560,7 +560,7 @@ describe('bind: two-way binding', () => {
 
   it('renders bind:checked in Svelte', () => {
     const src = [
-      '- pug',
+      '- view',
       'input',
       '  :',
       '    bind:checked isActive',
@@ -571,7 +571,7 @@ describe('bind: two-way binding', () => {
 
   it('rejects non-assignable bind expressions before codegen', () => {
     const src = [
-      '- pug',
+      '- view',
       'input',
       '  :',
       '    bind:value getValue()',
@@ -584,7 +584,7 @@ describe('bind: two-way binding', () => {
 
   it('allows member-path bind expressions across targets', () => {
     const src = [
-      '- pug',
+      '- view',
       'input',
       '  :',
       '    bind:value form.user.name',
@@ -601,7 +601,7 @@ describe('bind: two-way binding', () => {
 describe('scoped slots', () => {
   it('emits render prop signature for scoped slot-def in React', () => {
     const src = [
-      '- pug',
+      '- view',
       'ul',
       '  slot:row(item)',
     ].join('\n')
@@ -613,7 +613,7 @@ describe('scoped slots', () => {
 
   it('emits slot props in Vue for scoped slot-def', () => {
     const src = [
-      '- pug',
+      '- view',
       'ul',
       '  slot:row(item)',
     ].join('\n')
@@ -623,7 +623,7 @@ describe('scoped slots', () => {
 
   it('emits slot shorthand in Svelte for scoped slot-def', () => {
     const src = [
-      '- pug',
+      '- view',
       'ul',
       '  slot:row(item)',
     ].join('\n')
@@ -633,7 +633,7 @@ describe('scoped slots', () => {
 
   it('emits scoped template in Vue for slot-use with params', () => {
     const src = [
-      '- pug',
+      '- view',
       'List',
       '  slot:row(item)',
       '    li {item}',
@@ -644,7 +644,7 @@ describe('scoped slots', () => {
 
   it('emits let: directives in Svelte for slot-use with params', () => {
     const src = [
-      '- pug',
+      '- view',
       'List',
       '  slot:row(item)',
       '    li {item}',
@@ -655,7 +655,7 @@ describe('scoped slots', () => {
 
   it('emits render prop function in React for slot-use with params', () => {
     const src = [
-      '- pug',
+      '- view',
       'List',
       '  slot:row(item)',
       '    li {item}',
@@ -669,7 +669,7 @@ describe('scoped slots', () => {
 
 describe('SSR mode', () => {
   it('prepends use server directive in React', () => {
-    const src = '- pug\ndiv Hello'
+    const src = '- view\ndiv Hello'
     const out = compile(src, { componentName: 'Test', target: 'react', ssr: true }).code
     expect(out.trimStart().startsWith("'use server'")).toBe(true)
   })
@@ -679,7 +679,7 @@ describe('SSR mode', () => {
       '- state',
       '  count: number = 0',
       '',
-      '- pug',
+      '- view',
       'div {count}',
     ].join('\n')
     const out = compile(src, { componentName: 'Test', target: 'react', ssr: true }).code
@@ -688,7 +688,7 @@ describe('SSR mode', () => {
 
   it('omits style module block in Vue SSR output', () => {
     const src = [
-      '- pug',
+      '- view',
       'div',
       '  ::',
       '    color red',
@@ -698,7 +698,7 @@ describe('SSR mode', () => {
   })
 
   it('emits module context block in Svelte SSR output', () => {
-    const src = '- pug\ndiv Hello'
+    const src = '- view\ndiv Hello'
     const out = compile(src, { componentName: 'Test', target: 'svelte', ssr: true }).code
     expect(out).toContain('<script context="module"')
   })

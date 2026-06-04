@@ -1,0 +1,13 @@
+../../**
+../**
+.vscode/**
+.git/**
+.gitignore
+.gitattributes
+.vscodeignore
+node_modules/**
+src/**
+tsconfig.json
+tests/**
+*.vsix
+!dist/**

@@ -102,7 +102,7 @@ export function printLoom(file: LoomFile): string {
 
 export function printMarkupBlock(nodes: MarkupNode[]): string {
   const markupLines = nodes.flatMap((node) => printMarkupNodeLines(node, '  '))
-  return `- pug\n${markupLines.join('\n')}`
+  return `- view\n${markupLines.join('\n')}`
 }
 
 export function printMarkupNodes(nodes: MarkupNode[], indent = ''): string {

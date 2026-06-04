@@ -149,7 +149,7 @@ mod fuzz_tests {
             "- props\n",
             "- state\n",
             "- computed\n",
-            "- pug\n",
+            "- view\n",
             "- ts\n",
             "div",
             "  ",
@@ -188,12 +188,12 @@ mod fuzz_tests {
         let cases = [
             "",
             "\0\0\0",
-            "- pug\n  div\n    :\n      class {unterminated",
+            "- view\n  div\n    :\n      class {unterminated",
             "- props\n  name: Array<{ id: string } = [",
             "- computed\n  total",
             "if show\n  p ok\nelse if\n  p bad\nelse\n  p fallback",
             "div\n     p uneven\n   span back",
-            "- ts\n  const x = `unterminated\n- pug\np after",
+            "- ts\n  const x = `unterminated\n- view\np after",
             "each item, index in\n  div",
             "slot:123\n  p bad-slot-name",
         ];

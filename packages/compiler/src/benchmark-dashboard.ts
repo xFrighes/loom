@@ -30,7 +30,7 @@ const source = `- props
   value: string = "$42.8k"
   trend: string = "+12%"
 
-- pug
+- view
 section.card
   ::
     border 1px solid #d0d7de

@@ -21,7 +21,7 @@ const source = `- meta
 - props
   title: string
 
-- pug
+- view
 section.hero
   :
     src ./hero.svg
@@ -87,7 +87,7 @@ describe('advanced language features', () => {
   })
 
   it('applies conservative directive transforms before codegen', () => {
-    const result = compile('- pug\np Hello', {
+    const result = compile('- view\np Hello', {
       componentName: 'Directed',
       target: 'react',
       directives: [{

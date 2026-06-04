@@ -32,7 +32,7 @@ describe('loom-llm write-workflow', () => {
       '- ts',
       '  const count = 0',
       '',
-      '- pug',
+      '- view',
       '  div',
       '    p {count}',
     ].join('\n')
@@ -82,7 +82,7 @@ describe('loom-llm write-workflow', () => {
   })
 
   it('prevents sibling-insertion drift when multiple blocks are inserted at the same position', () => {
-    const source = '- pug\n  div'
+    const source = '- view\n  div'
     const { root, filePath } = createWorkspace(source)
     roots.push(root)
 
@@ -118,12 +118,12 @@ describe('loom-llm write-workflow', () => {
   })
 
   it('provides a helpful error message when a file has drifted', () => {
-    const original = '- pug\n  div Hello'
+    const original = '- view\n  div Hello'
     const { root, filePath } = createWorkspace(original)
     roots.push(root)
     
     // Modify the file to cause drift
-    writeFileSync(filePath, '- pug\n  div Modified', 'utf8')
+    writeFileSync(filePath, '- view\n  div Modified', 'utf8')
 
     const bundle: LoomPatchBundle = {
       version: 1,

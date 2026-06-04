@@ -71,7 +71,7 @@ export const Counter = ({ initial = 0 }) => {
   count = initial
 - computed
   isBig = count > 10
-- pug
+- view
   div.card
     :: padding: 1rem;
     h2 Count: {count}
@@ -124,7 +124,7 @@ Loom isn't just a wrapper; it's a high-performance compiler. By moving the heavy
 Standard LLMs struggle with 2,000-line React files. Loom ships with `loom-llm`, a specialized projection engine that makes your AI agents 10x smarter.
 
 - **Outline Projection:** Feed the agent a "symbol-only" view of your UI to plan complex features for **< 100 tokens**.
-- **Block-Level Patching:** Agents only send back the specific `pug` or `state` zones that changed. No more "Rewriting the whole file" errors.
+- **Block-Level Patching:** Agents only send back the specific `view` or `state` zones that changed. No more "Rewriting the whole file" errors.
 - **Context Pinning:** Keep 25x more of your app in the LLM's active memory than is possible with traditional frameworks.
 
 

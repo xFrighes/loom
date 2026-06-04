@@ -195,7 +195,7 @@ function serializeTopLevelBlock(
       return body ? `- ${resolvedLang}\n${indentBlock(body)}` : `- ${resolvedLang}`
     }
     case 'markup':
-      return body ? `- pug\n${indentBlock(body)}` : '- pug'
+      return body ? `- view\n${indentBlock(body)}` : '- view'
     default:
       return body
   }
@@ -218,7 +218,7 @@ function stripKnownHeader(content: string): string {
     .trim()
   const lines = normalized.split('\n')
   const first = lines[0]?.trim()
-  if (first && /^- (generics|props|ts|js|pug)$/.test(first)) {
+  if (first && /^- (generics|props|ts|js|view)$/.test(first)) {
     return lines.slice(1).join('\n')
   }
   return normalized

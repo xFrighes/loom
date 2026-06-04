@@ -10,7 +10,7 @@ const sampleLoom = `- props
 - computed
   isBig = count > 10
 
-- pug
+- view
   div.card
     h1 Hello {name}
     button

@@ -53,7 +53,7 @@ export function compilePlayground(input: PlaygroundInput): PlaygroundResult {
 export const defaultPlaygroundSource = `- props
   title: string = "Loom"
 
-- pug
+- view
 section.card
   h1 {title}
   p Edit this component and switch targets.
@@ -69,7 +69,7 @@ export const playgroundTutorialLessons: PlaygroundTutorialLesson[] = [
     source: `- props
   title: string = "Loom"
 
-- pug
+- view
 section.card
   h1 {title}
   p One source feeds every target.
@@ -107,7 +107,7 @@ defineProps<{ title?: string }>()
     source: `- props
   tone: string = "calm"
 
-- pug
+- view
 article.panel
   ::
     border 1px solid #d0d7de
@@ -151,7 +151,7 @@ export function PlaygroundComponent({ tone = "calm" }) {
     source: `- ts
   let count = 0
 
-- pug
+- view
 div.counter
   span Count: {count}
 `,
@@ -186,7 +186,7 @@ const count = ref(0)
     source: `- ts
   let count = 0
 
-- pug
+- view
 div.counter
   button
     @click

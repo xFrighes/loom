@@ -40,7 +40,7 @@ Write components that describe *what* they do, not *how* the framework handles i
 - computed
   isBig = count > 10
 
-- pug
+- view
   div.counter-card
     ::
       padding: 1.5rem;

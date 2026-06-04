@@ -2,7 +2,7 @@
   let count = 0
   const items = ['React', 'Vue', 'Svelte']
 
-- pug
+- view
   div.app
     h1 Loom Svelte Demo
 

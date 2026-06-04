@@ -22,7 +22,7 @@ Loom migration works best as an incremental adoption path. Keep your existing Re
   label: string
   onSelect: () => void
 
-- pug
+- view
 button.choice
   :
     type button

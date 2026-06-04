@@ -4,7 +4,7 @@ import { createIncrementalCache } from '../src/index.js'
 const source = `- props
   title: string = "Loom"
 
-- pug
+- view
 section.card
   h1 {title}
 `

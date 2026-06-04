@@ -31,7 +31,7 @@ describe('create-loom-app', () => {
     expect(pkg.dependencies?.['@loom-ui/devtools']).toBeUndefined()
     expect(pkg.devDependencies?.['@loom-ui/devtools']).toBeUndefined()
     expect(viteConfig).toContain(`loom({ target: '${template === 'loomkit' ? 'react' : template}' })`)
-    expect(app).toContain('- pug')
+    expect(app).toContain('- view')
 
     if (template === 'loomkit') {
       expect(pkg.dependencies['@loom-ui/kit']).toBeDefined()

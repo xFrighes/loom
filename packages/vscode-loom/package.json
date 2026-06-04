@@ -1,11 +1,16 @@
 {
-  "name": "vscode-loom",
-  "displayName": "Loom",
-  "version": "0.1.0",
+  "name": "vscode-loom-ui",
+  "displayName": "Loom UI Language Support",
+  "version": "0.1.4",
   "description": "Syntax highlighting, diagnostics, formatting, hovers, snippets, and preview support for Loom files",
   "license": "MIT",
-  "type": "module",
   "publisher": "loom-ui",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xFrighes/loom.git",
+    "directory": "packages/vscode-loom"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -21,7 +26,7 @@
     "onCommand:loom.pasteAsLoomJsx",
     "onCommand:loom.convertSelectionToLoomHtml"
   ],
-  "main": "./dist/extension.cjs",
+  "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {

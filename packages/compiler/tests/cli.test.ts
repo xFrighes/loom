@@ -30,7 +30,7 @@ describe('loomc CLI', () => {
   it('provides a default file watcher for real --watch invocations', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'loom-cli-watch-'))
     const filePath = path.join(root, 'App.loom')
-    writeFileSync(filePath, '- pug\ndiv Hello', 'utf8')
+    writeFileSync(filePath, '- view\ndiv Hello', 'utf8')
 
     const watcher = defaultWatchFile(filePath, () => {})
     watcher.close()
@@ -39,7 +39,7 @@ describe('loomc CLI', () => {
   it('supports --watch without exiting and reruns on file changes', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'loom-cli-'))
     const filePath = path.join(root, 'App.loom')
-    writeFileSync(filePath, '- pug\ndiv Hello', 'utf8')
+    writeFileSync(filePath, '- view\ndiv Hello', 'utf8')
 
     const { io, read } = createIo()
     let onChange: (() => void) | undefined
@@ -57,7 +57,7 @@ describe('loomc CLI', () => {
     expect(read().stdout).toContain('OK')
     expect(read().stderr).toContain(`Watching ${path.resolve(filePath)}`)
 
-    writeFileSync(filePath, '- pug\nelse\n  div Nope', 'utf8')
+    writeFileSync(filePath, '- view\nelse\n  div Nope', 'utf8')
     onChange?.()
 
     expect(read().stderr).toContain('loom/control-flow-placement')
@@ -67,7 +67,7 @@ describe('loomc CLI', () => {
   it('sanitizes component names from filenames', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'loom-cli-name-'))
     const filePath = path.join(root, '404.loom')
-    writeFileSync(filePath, '- pug\ndiv Error', 'utf8')
+    writeFileSync(filePath, '- view\ndiv Error', 'utf8')
 
     const { io, read } = createIo()
     runCli(['node', 'loomc', 'compile', filePath], io)
@@ -85,7 +85,7 @@ describe('loomc CLI', () => {
       },
     }), 'utf8')
     writeFileSync(path.join(root, 'vite.config.ts'), "import loom from 'vite-plugin-loom'\nexport default { plugins: [loom({ target: 'react' })] }\n", 'utf8')
-    writeFileSync(path.join(root, 'src/App.loom'), '- pug\ndiv Hello', 'utf8')
+    writeFileSync(path.join(root, 'src/App.loom'), '- view\ndiv Hello', 'utf8')
 
     const { io, read } = createIo()
     const code = runCli(['node', 'loomc', 'doctor', root], io)

@@ -30,7 +30,7 @@ export default defineConfig({
   selected: boolean = false
   onChoose: () => void
 
-- pug
+- view
 article.result-row
   :
     aria-selected {selected}
@@ -71,7 +71,7 @@ At the Vue boundary, callbacks are the most portable interop shape. For componen
   label: string
   onSave: () => void
 
-- pug
+- view
 button
   :
     type button
@@ -89,7 +89,7 @@ Pinia stays available from `- ts` because Loom compiles to Vue code for this tar
   const cart = useCartStore()
   const { total } = storeToRefs(cart)
 
-- pug
+- view
 aside.cart-summary
   p Total: {total}
   button
@@ -109,7 +109,7 @@ Keep app-level providers in Vue and inject in Loom when the component is Vue-spe
   import { inject } from 'vue'
   const theme = inject('theme', 'light')
 
-- pug
+- view
 button.themed-button
   :
     data-theme {theme}

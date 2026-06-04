@@ -13,6 +13,6 @@ describe('esbuild-plugin-loom', () => {
   })
 
   it('compiles React output for esbuild', () => {
-    expect(compileForEsbuild('- pug\ndiv Hello', '/src/Card.loom', 'react').code).toContain('function Card')
+    expect(compileForEsbuild('- view\ndiv Hello', '/src/Card.loom', 'react').code).toContain('function Card')
   })
 })

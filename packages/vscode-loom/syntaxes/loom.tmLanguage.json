@@ -6,44 +6,305 @@
     { "include": "#zones" },
     { "include": "#dimensions" },
     { "include": "#events" },
+    { "include": "#controls" },
+    { "include": "#slots" },
+    { "include": "#markup" },
     { "include": "#strings" },
-    { "include": "#expressions" },
-    { "include": "#tags" }
+    { "include": "#expressions" }
   ],
   "repository": {
     "comments": {
       "patterns": [
         {
           "name": "comment.line.double-slash.loom",
-          "match": "^\\s*//.*$"
+          "match": "^(\\s*)(//).*$",
+          "captures": {
+            "2": { "name": "punctuation.definition.comment.loom" }
+          }
         }
       ]
     },
     "zones": {
       "patterns": [
-        {
-          "name": "entity.name.section.zone.loom",
-          "match": "^\\s*-\\s+(pug|ts|js|props|generics|state|computed|meta|schema|server|tokens)\\b"
-        }
+        { "include": "#view-zone" },
+        { "include": "#typescript-zone" },
+        { "include": "#javascript-zone" },
+        { "include": "#zone-header" }
+      ]
+    },
+    "zone-header": {
+      "name": "meta.section.zone.loom",
+      "match": "^(\\s*)(-)(\\s+)(generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|watch|ts|js|view)\\b.*$",
+      "captures": {
+        "2": { "name": "punctuation.definition.zone.loom" },
+        "4": { "name": "entity.name.section.zone.loom" }
+      }
+    },
+    "typescript-zone": {
+      "name": "meta.section.zone.typescript.loom",
+      "begin": "^(\\s*)(-)(\\s+)(generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|watch|ts)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.zone.loom" },
+        "4": { "name": "entity.name.section.zone.loom" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "source.ts" }
+      ]
+    },
+    "javascript-zone": {
+      "name": "meta.section.zone.javascript.loom",
+      "begin": "^(\\s*)(-)(\\s+)(js)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.zone.loom" },
+        "4": { "name": "entity.name.section.zone.loom" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "source.js" }
+      ]
+    },
+    "view-zone": {
+      "name": "meta.section.zone.markup.loom",
+      "begin": "^(\\s*)(-)(\\s+)(view)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.zone.loom" },
+        "4": { "name": "entity.name.section.zone.loom" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#dimensions" },
+        { "include": "#events" },
+        { "include": "#controls" },
+        { "include": "#slots" },
+        { "include": "#markup" },
+        { "include": "#strings" },
+        { "include": "#expressions" }
       ]
     },
     "dimensions": {
       "patterns": [
+        { "include": "#style-dimension" },
+        { "include": "#data-dimension" }
+      ]
+    },
+    "data-dimension": {
+      "name": "meta.dimension.data.loom",
+      "begin": "^(\\s*)(:)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "keyword.operator.dimension.data.loom" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#attribute-spread" },
+        { "include": "#attribute-as" },
+        { "include": "#attribute-assignment" },
+        { "include": "#expressions" }
+      ]
+    },
+    "style-dimension": {
+      "name": "meta.dimension.style.loom",
+      "begin": "^(\\s*)(::)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "keyword.operator.dimension.style.loom" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#css-at-rule" },
+        { "include": "#css-declaration" },
+        { "include": "#css-nested-selector" },
+        { "include": "source.css" }
+      ]
+    },
+    "attribute-spread": {
+      "name": "meta.attribute.spread.loom",
+      "begin": "^(\\s*)(\\.\\.\\.)(\\{)",
+      "beginCaptures": {
+        "2": { "name": "keyword.operator.spread.loom" },
+        "3": { "name": "punctuation.definition.expression.begin.loom" }
+      },
+      "end": "(\\})",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.expression.end.loom" }
+      },
+      "patterns": [
+        { "include": "source.ts" }
+      ]
+    },
+    "attribute-as": {
+      "name": "meta.attribute.polymorphic.loom",
+      "match": "^(\\s*)(as)\\s+(?=\\{)",
+      "captures": {
+        "2": { "name": "variable.parameter.attribute.loom" }
+      }
+    },
+    "attribute-assignment": {
+      "name": "meta.attribute.loom",
+      "begin": "^(\\s*)([A-Za-z_:][\\w:.-]*)\\b",
+      "beginCaptures": {
+        "2": { "name": "entity.other.attribute-name.loom" }
+      },
+      "end": "$",
+      "patterns": [
+        { "include": "#strings" },
+        { "include": "#expressions" },
         {
-          "name": "keyword.operator.dimension.style.loom",
-          "match": "^\\s*::\\s*$"
-        },
-        {
-          "name": "keyword.operator.dimension.data.loom",
-          "match": "^\\s*:\\s*$"
+          "name": "string.unquoted.attribute-value.loom",
+          "match": "[^\\s{}][^{}]*"
         }
       ]
     },
+    "css-at-rule": {
+      "name": "meta.at-rule.loom",
+      "match": "^(\\s*)(@[A-Za-z-]+)\\b(.*)$",
+      "captures": {
+        "2": { "name": "keyword.control.at-rule.css.loom" },
+        "3": { "name": "meta.at-rule.condition.css.loom" }
+      }
+    },
+    "css-nested-selector": {
+      "name": "meta.selector.nested.loom",
+      "match": "^(\\s*)((&|:global\\(|[.#]|\\[).*)$",
+      "captures": {
+        "2": { "name": "entity.name.tag.selector.css.loom" }
+      }
+    },
+    "css-declaration": {
+      "name": "meta.property-list.css.loom",
+      "match": "^(\\s*)([A-Za-z-]+)(\\s+)(.+)$",
+      "captures": {
+        "2": { "name": "support.type.property-name.css.loom" },
+        "4": { "name": "meta.property-value.css.loom" }
+      }
+    },
     "events": {
+      "name": "meta.dimension.event.loom",
+      "begin": "^(\\s*)(@)([A-Za-z_][\\w-]*)((?:\\.[A-Za-z_][\\w-]*)*)\\s*$",
+      "beginCaptures": {
+        "2": { "name": "keyword.operator.dimension.behavior.loom" },
+        "3": { "name": "entity.name.function.event.loom" },
+        "4": { "name": "storage.modifier.event.loom" }
+      },
+      "end": "^(?!\\1\\s)",
+      "patterns": [
+        { "include": "source.ts" }
+      ]
+    },
+    "controls": {
       "patterns": [
         {
-          "name": "entity.name.function.event.loom",
-          "match": "^\\s*@([A-Za-z_][\\w-]*)(\\.[A-Za-z_][\\w-]*)*"
+          "name": "meta.control.if.loom",
+          "match": "^(\\s*)(if|else if)(?:\\s+(.+))?$",
+          "captures": {
+            "2": { "name": "keyword.control.conditional.loom" },
+            "3": { "name": "meta.embedded.expression.loom" }
+          }
+        },
+        {
+          "name": "keyword.control.conditional.loom",
+          "match": "^(\\s*)(else)\\s*$",
+          "captures": {
+            "2": { "name": "keyword.control.conditional.loom" }
+          }
+        },
+        {
+          "name": "meta.control.each.loom",
+          "match": "^(\\s*)(each)\\s+([A-Za-z_$][\\w$]*)(?:\\s*,\\s*([A-Za-z_$][\\w$]*))?\\s+(in)\\s+(.+)$",
+          "captures": {
+            "2": { "name": "keyword.control.loop.loom" },
+            "3": { "name": "variable.parameter.iteration.loom" },
+            "4": { "name": "variable.parameter.iteration.index.loom" },
+            "5": { "name": "keyword.operator.iteration.loom" },
+            "6": { "name": "meta.embedded.expression.loom" }
+          }
+        }
+      ]
+    },
+    "slots": {
+      "patterns": [
+        {
+          "name": "meta.slot.loom",
+          "match": "^(\\s*)(slot)(:)([A-Za-z_][\\w-]*)?\\s*$",
+          "captures": {
+            "2": { "name": "keyword.control.slot.loom" },
+            "3": { "name": "punctuation.separator.slot.loom" },
+            "4": { "name": "entity.name.section.slot.loom" }
+          }
+        },
+        {
+          "name": "keyword.control.slot.loom",
+          "match": "^(\\s*)(slot)\\s*$",
+          "captures": {
+            "2": { "name": "keyword.control.slot.loom" }
+          }
+        }
+      ]
+    },
+    "markup": {
+      "patterns": [
+        {
+          "name": "meta.element.component.loom",
+          "begin": "^(\\s*)([A-Z][A-Za-z0-9]*)",
+          "beginCaptures": {
+            "2": { "name": "entity.name.type.component.loom" }
+          },
+          "end": "$",
+          "patterns": [
+            { "include": "#selectors" },
+            { "include": "#strings" },
+            { "include": "#expressions" },
+            { "include": "#inline-text" }
+          ]
+        },
+        {
+          "name": "meta.element.polymorphic.loom",
+          "begin": "^(\\s*)(element)\\b",
+          "beginCaptures": {
+            "2": { "name": "support.type.polymorphic.loom" }
+          },
+          "end": "$",
+          "patterns": [
+            { "include": "#strings" },
+            { "include": "#expressions" },
+            { "include": "#inline-text" }
+          ]
+        },
+        {
+          "name": "meta.element.html.loom",
+          "begin": "^(\\s*)([a-z][A-Za-z0-9]*)",
+          "beginCaptures": {
+            "2": { "name": "entity.name.tag.loom" }
+          },
+          "end": "$",
+          "patterns": [
+            { "include": "#selectors" },
+            { "include": "#strings" },
+            { "include": "#expressions" },
+            { "include": "#inline-text" }
+          ]
+        }
+      ]
+    },
+    "selectors": {
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name.class.loom",
+          "match": "\\.[A-Za-z_][\\w-]*"
+        },
+        {
+          "name": "entity.other.attribute-name.id.loom",
+          "match": "#[A-Za-z_][\\w-]*"
+        }
+      ]
+    },
+    "inline-text": {
+      "patterns": [
+        {
+          "name": "string.unquoted.inline-text.loom",
+          "match": "[^\\s{}][^{}]*"
         }
       ]
     },
@@ -52,14 +313,30 @@
         {
           "name": "string.quoted.double.loom",
           "begin": "\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.loom" }
+          },
           "end": "\"",
-          "patterns": [{ "include": "#expressions" }]
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.loom" }
+          },
+          "patterns": [
+            { "include": "#expressions" }
+          ]
         },
         {
           "name": "string.quoted.single.loom",
           "begin": "'",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.loom" }
+          },
           "end": "'",
-          "patterns": [{ "include": "#expressions" }]
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.loom" }
+          },
+          "patterns": [
+            { "include": "#expressions" }
+          ]
         }
       ]
     },
@@ -68,27 +345,16 @@
         {
           "name": "meta.embedded.expression.loom",
           "begin": "\\{",
-          "end": "\\}"
-        }
-      ]
-    },
-    "tags": {
-      "patterns": [
-        {
-          "name": "entity.name.tag.loom",
-          "match": "^\\s*([A-Za-z][\\w:-]*)"
-        },
-        {
-          "name": "entity.other.attribute-name.class.loom",
-          "match": "\\.[A-Za-z_][\\w-]*"
-        },
-        {
-          "name": "entity.other.attribute-name.id.loom",
-          "match": "#[A-Za-z_][\\w-]*"
-        },
-        {
-          "name": "keyword.control.loom",
-          "match": "^\\s*(if|else if|else|each|slot)\\b"
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.expression.begin.loom" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.expression.end.loom" }
+          },
+          "patterns": [
+            { "include": "source.ts" }
+          ]
         }
       ]
     }

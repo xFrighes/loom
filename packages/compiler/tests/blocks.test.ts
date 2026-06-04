@@ -13,7 +13,7 @@ describe('printer and block extraction', () => {
     "  import { ref } from 'vue'",
     '  const count = ref(0)',
     '',
-    '- pug',
+    '- view',
     '  div.card',
     '    span Hello',
   ].join('\n')
@@ -23,7 +23,7 @@ describe('printer and block extraction', () => {
     expect(printed).toContain('- generics')
     expect(printed).toContain('- props')
     expect(printed).toContain('- ts')
-    expect(printed).toContain('- pug')
+    expect(printed).toContain('- view')
     expect(printed.endsWith('\n')).toBe(true)
   })
 
@@ -46,7 +46,7 @@ describe('printer and block extraction', () => {
   })
 
   it('preserves comments when printing inline-capable elements', () => {
-    const printed = printLoom(parse('- pug\n  p\n    // important\n    Hello'))
+    const printed = printLoom(parse('- view\n  p\n    // important\n    Hello'))
     expect(printed).toContain('// important')
     expect(printed).toContain('Hello')
   })

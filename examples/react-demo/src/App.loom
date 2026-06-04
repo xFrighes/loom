@@ -5,7 +5,7 @@
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const items = ['React', 'Vue', 'Svelte']
 
-- pug
+- view
   div.app
     ::
       font-family sans-serif

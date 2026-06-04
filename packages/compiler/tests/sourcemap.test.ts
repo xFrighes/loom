@@ -87,7 +87,7 @@ describe('source maps', () => {
   it('maps React markup lines back to their original Loom source lines', () => {
     const source = `- ts
   const show = true
-- pug
+- view
 section
   button Save
   if show

@@ -13,8 +13,8 @@ describe('cross-package workspace indexing', () => {
     writeFileSync(path.join(root, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }), 'utf8')
     writeFileSync(path.join(root, 'packages/ui/package.json'), JSON.stringify({ name: '@demo/ui' }), 'utf8')
     writeFileSync(path.join(root, 'packages/app/package.json'), JSON.stringify({ name: '@demo/app' }), 'utf8')
-    writeFileSync(path.join(root, 'packages/ui/src/Card.loom'), '- props\n  title: string\n\n- pug\narticle\n  h2 {title}', 'utf8')
-    writeFileSync(path.join(root, 'packages/app/src/App.loom'), "- ts\n  import { Card } from '@demo/ui'\n\n- pug\nmain\n  Card\n    :\n      title \"Hello\"", 'utf8')
+    writeFileSync(path.join(root, 'packages/ui/src/Card.loom'), '- props\n  title: string\n\n- view\narticle\n  h2 {title}', 'utf8')
+    writeFileSync(path.join(root, 'packages/app/src/App.loom'), "- ts\n  import { Card } from '@demo/ui'\n\n- view\nmain\n  Card\n    :\n      title \"Hello\"", 'utf8')
 
     const index = indexWorkspace(root)
 
@@ -30,7 +30,7 @@ describe('cross-package workspace indexing', () => {
     mkdirSync(path.join(root, 'packages/app/src'), { recursive: true })
     writeFileSync(path.join(root, 'package.json'), JSON.stringify({ workspaces: ['packages/*'] }), 'utf8')
     writeFileSync(path.join(root, 'packages/app/package.json'), JSON.stringify({ name: '@demo/app' }), 'utf8')
-    writeFileSync(path.join(root, 'packages/app/src/App.loom'), '- pug\nmain\n  MissingCard', 'utf8')
+    writeFileSync(path.join(root, 'packages/app/src/App.loom'), '- view\nmain\n  MissingCard', 'utf8')
 
     const index = indexWorkspace(root)
 

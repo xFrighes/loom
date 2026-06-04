@@ -5,7 +5,7 @@
       "- props",
       "  ${1:title}: string = \"${2:Loom}\"",
       "",
-      "- pug",
+      "- view",
       "${3:section}.card",
       "  h1 {${1:title}}"
     ],
@@ -17,7 +17,7 @@
       "- ts",
       "  let ${1:count} = ${2:0}",
       "",
-      "- pug",
+      "- view",
       "button",
       "  @click",
       "    ${1:count} = ${1:count} + 1",
@@ -60,5 +60,29 @@
       "  theme.dark.color.primary: ${2:#8ab4ff}"
     ],
     "description": "Create design tokens."
+  },
+  "Each Loop": {
+    "prefix": "each",
+    "body": [
+      "each ${1:item} in ${2:items}",
+      "  ${3:div} {${1:item}}"
+    ],
+    "description": "Create an each loop in a Loom template."
+  },
+  "If Condition": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition}",
+      "  ${2:p} ${3:Text}"
+    ],
+    "description": "Create an if conditional block in a Loom template."
+  },
+  "Computed Zone": {
+    "prefix": "computed",
+    "body": [
+      "- computed",
+      "  ${1:doubled} = ${2:count} * 2"
+    ],
+    "description": "Create a computed zone for reactive data."
   }
 }

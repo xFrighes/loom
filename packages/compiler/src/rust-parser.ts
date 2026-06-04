@@ -21,6 +21,7 @@ export function tryRustParse(src: string): any {
       throw new Error(result.error)
     }
     if (hasAdvancedZones(src) && missingAdvancedZoneResult(result)) return null
+    if (hasExplicitViewZone(src) && missingViewZoneResult(result)) return null
     return result
   }
 
@@ -31,6 +32,7 @@ export function tryRustParse(src: string): any {
        throw new Error(result.error) 
     }
     if (hasAdvancedZones(src) && missingAdvancedZoneResult(result)) return null
+    if (hasExplicitViewZone(src) && missingViewZoneResult(result)) return null
     return normalizeRustResult(result)
   }
   return null
@@ -69,7 +71,11 @@ export function tryRustParseMany(sources: string[]): any[] | null {
       }
       return parsed
     })
-    if (parsedResults.some((result: any, index: number) => hasAdvancedZones(sources[index]) && missingAdvancedZoneResult(result))) {
+    if (parsedResults.some((result: any, index: number) => {
+      const source = sources[index] ?? ''
+      return (hasAdvancedZones(source) && missingAdvancedZoneResult(result))
+        || (hasExplicitViewZone(source) && missingViewZoneResult(result))
+    })) {
       return null
     }
     return parsedResults
@@ -81,7 +87,15 @@ function hasAdvancedZones(src: string): boolean {
   return /^\s*-\s+(meta|schema|server|tokens)\b/m.test(src)
 }
 
+function hasExplicitViewZone(src: string): boolean {
+  return /^-\s+view\b/m.test(src)
+}
+
 function missingAdvancedZoneResult(result: any): boolean {
   if (!result || typeof result !== 'object') return true
   return result.meta === undefined && result.schema === undefined && result.server === undefined && result.tokens === undefined
+}
+
+function missingViewZoneResult(result: any): boolean {
+  return !result || typeof result !== 'object' || !Array.isArray(result.markup)
 }

@@ -73,7 +73,7 @@ describe('loom-llm', () => {
       '  const doubled = computed(() => count.value * 2)',
       "  const status = computed(() => count.value > 10 ? 'large' : 'small')",
       '',
-      '- pug',
+      '- view',
       '  section.wrapper',
       '    h1 {label}',
       '    p Current: {count}',
@@ -114,7 +114,7 @@ describe('loom-llm', () => {
       '- computed',
       '  isBig = count > 10',
       '',
-      '- pug',
+      '- view',
       '  div.card',
       '    h1 Hello {name}',
       '    button',
@@ -152,7 +152,7 @@ describe('loom-llm', () => {
       '- ts',
       '  const count = 0',
       '',
-      '- pug',
+      '- view',
       '  h1 {title}',
     ].join('\n')
     const { root, relativePath } = createWorkspace(source)
@@ -174,12 +174,12 @@ describe('loom-llm', () => {
     mkdirSync(path.join(root, 'src'), { recursive: true })
     writeFileSync(
       path.join(root, 'src/Card.loom'),
-      ['- props', '  theme: Theme', '', '- pug', '  Button {theme}'].join('\n'),
+      ['- props', '  theme: Theme', '', '- view', '  Button {theme}'].join('\n'),
       'utf8',
     )
     writeFileSync(
       path.join(root, 'src/Panel.loom'),
-      ['- props', '  theme: Theme', '', '- pug', '  Button {theme}'].join('\n'),
+      ['- props', '  theme: Theme', '', '- view', '  Button {theme}'].join('\n'),
       'utf8',
     )
 
@@ -204,9 +204,9 @@ describe('loom-llm', () => {
     activeWorkspaces.push(root)
     mkdirSync(path.join(root, 'src'), { recursive: true })
     mkdirSync(path.join(root, 'node_modules', 'large'), { recursive: true })
-    writeFileSync(path.join(root, 'src', 'App.loom'), '- pug\n  div App', 'utf8')
+    writeFileSync(path.join(root, 'src', 'App.loom'), '- view\n  div App', 'utf8')
     for (let index = 0; index < 200; index += 1) {
-      writeFileSync(path.join(root, 'node_modules', 'large', `Ignored${index}.loom`), '- pug\n  div Ignored', 'utf8')
+      writeFileSync(path.join(root, 'node_modules', 'large', `Ignored${index}.loom`), '- view\n  div Ignored', 'utf8')
     }
 
     const result = indexWorkspace({ root })
@@ -216,7 +216,7 @@ describe('loom-llm', () => {
   })
 
   it('applies block replacement patches and preserves a valid file', () => {
-    const source = ['- ts', '  let count = 0', '', '- pug', '  button', '    Count: {count}'].join(
+    const source = ['- ts', '  let count = 0', '', '- view', '  button', '    Count: {count}'].join(
       '\n',
     )
     const { filePath } = createWorkspace(source)
@@ -242,7 +242,7 @@ describe('loom-llm', () => {
   })
 
   it('applies node replacement patches with indentation preserved', () => {
-    const source = ['- pug', '  div', '    span One', '    span Two'].join('\n')
+    const source = ['- view', '  div', '    span One', '    span Two'].join('\n')
     const { filePath } = createWorkspace(source)
 
     const bundle: LoomPatchBundle = {
@@ -264,7 +264,7 @@ describe('loom-llm', () => {
   })
 
   it('rejects stale patch bundles', () => {
-    const source = '- pug\n  div Hello'
+    const source = '- view\n  div Hello'
     const { filePath } = createWorkspace(source)
 
     const bundle: LoomPatchBundle = {
@@ -285,7 +285,7 @@ describe('loom-llm', () => {
   })
 
   it('creates unified diffs for patch previews', () => {
-    const source = '- pug\n  div Hello'
+    const source = '- view\n  div Hello'
     const { filePath, relativePath } = createWorkspace(source)
 
     const bundle: LoomPatchBundle = {
@@ -314,7 +314,7 @@ describe('loom-llm', () => {
 
   it('produces a zero diff for a no-op block patch round trip', () => {
     const source = formatLoom(
-      ['- ts', '  let count = 0', '', '- pug', '  button', '    Count: {count}'].join('\n'),
+      ['- ts', '  let count = 0', '', '- view', '  button', '    Count: {count}'].join('\n'),
     )
     const { filePath, relativePath } = createWorkspace(source)
 
@@ -342,7 +342,7 @@ describe('loom-llm', () => {
   })
 
   it('verifies loom files across compiler targets', () => {
-    const source = '- pug\n  div Hello'
+    const source = '- view\n  div Hello'
     const { root } = createWorkspace(source)
 
     const results = verifyWorkspace({ root })
@@ -352,7 +352,7 @@ describe('loom-llm', () => {
   })
 
   it('exposes the workflow through the CLI', () => {
-    const source = '- pug\n  div Hello'
+    const source = '- view\n  div Hello'
     const { root, relativePath } = createWorkspace(source)
     const { io, read } = createIo()
 
@@ -368,7 +368,7 @@ describe('loom-llm', () => {
   })
 
   it('exposes ultra caveman projections through the CLI', () => {
-    const source = ['- props', '  label: string', '', '- pug', '  button {label}'].join('\n')
+    const source = ['- props', '  label: string', '', '- view', '  button {label}'].join('\n')
     const { root, relativePath } = createWorkspace(source)
     const { io, read } = createIo()
 
@@ -397,7 +397,7 @@ describe('loom-llm', () => {
   })
 
   it('keeps apply paths inside the configured workspace root', () => {
-    const source = '- pug\n  div Hello'
+    const source = '- view\n  div Hello'
     const { root } = createWorkspace(source)
     const outside = path.join(mkdtempSync(path.join(tmpdir(), 'loom-llm-outside-')), 'Other.loom')
     writeFileSync(outside, source, 'utf8')
@@ -434,7 +434,7 @@ describe('loom-llm', () => {
   })
 
   it('applies multi-operation patch bundles against the original source ranges', () => {
-    const source = ['- pug', '  div', '    span One', '    span Two'].join('\n')
+    const source = ['- view', '  div', '    span One', '    span Two'].join('\n')
     const { filePath } = createWorkspace(source)
     const bundle: LoomPatchBundle = {
       version: 1,

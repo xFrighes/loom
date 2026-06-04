@@ -14,6 +14,6 @@ describe('rspack-plugin-loom', () => {
   })
 
   it('compiles target output', () => {
-    expect(compileForRspack('- pug\ndiv', '/src/Widget.loom').code).toContain('function Widget')
+    expect(compileForRspack('- view\ndiv', '/src/Widget.loom').code).toContain('function Widget')
   })
 })

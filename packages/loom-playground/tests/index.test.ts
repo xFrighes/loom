@@ -17,7 +17,7 @@ describe('@loom-ui/playground', () => {
   })
 
   it('returns diagnostics for invalid source', () => {
-    const result = compilePlayground({ source: '- pug\ndiv\n  :\n    id first\n    id second', target: 'react' })
+    const result = compilePlayground({ source: '- view\ndiv\n  :\n    id first\n    id second', target: 'react' })
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.message).toContain('loom/')
@@ -34,7 +34,7 @@ describe('@loom-ui/playground', () => {
     ])
 
     for (const lesson of playgroundTutorialLessons) {
-      expect(lesson.source).toContain('- pug')
+      expect(lesson.source).toContain('- view')
       expect(lesson.outputs.react).toBeTruthy()
       expect(lesson.outputs.vue).toBeTruthy()
       expect(lesson.outputs.svelte).toBeTruthy()

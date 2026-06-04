@@ -44,7 +44,7 @@ content = content.replace(vueRegex, (match, name, src) => {
   })`
 })
 
-// Some vue tests are inline: expect(vue('- pug\\ndiv')).toContain('<script setup lang="ts">')
+// Some vue tests are inline: expect(vue('- view\\ndiv')).toContain('<script setup lang="ts">')
 const vueInlineRegex = /it\('([^']+)', \(\) => \{\s+expect\(vue\(([^)]+)\)\)\.toContain\([^)]+\)\n[ \t]*\}\)/g
 content = content.replace(vueInlineRegex, (match, name, src) => {
   return `it('${name}', () => {

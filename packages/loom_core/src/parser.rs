@@ -227,7 +227,7 @@ fn parse_file(s: &mut TokenStream) -> Result<LoomFile, ParseError> {
             let switch_tok = s.consume();
             let zone_name = switch_tok.value.clone();
 
-            if zone_name == "pug" {
+            if zone_name == "view" {
                 if file.markup.is_some() {
                     return Err(ParseError { message: format!("Duplicate top-level zone: {}", zone_name), span: switch_tok.span });
                 }

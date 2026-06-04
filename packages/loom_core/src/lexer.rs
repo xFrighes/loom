@@ -163,7 +163,7 @@ pub fn tokenize(src: &str) -> LexerResult {
     let mut line_offset = 0;
 
     let ctx_re = CTX_RE.get_or_init(|| {
-        Regex::new(r"^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|pug)(\s|$)").unwrap()
+        Regex::new(r"^- (generics|props|state|computed|meta|schema|server|tokens|onMount|onUpdate|onUnmount|ts|js|view)(\s|$)").unwrap()
     });
 
     for (i, raw_line) in lines.iter().enumerate() {
@@ -172,7 +172,7 @@ pub fn tokenize(src: &str) -> LexerResult {
 
         if trimmed.is_empty() {
              if let Some(z) = &zone {
-                if z != "pug" {
+                if z != "view" {
                     tokens.push(Token {
                         r#type: TK::RawLine,
                         value: "".to_string(),
@@ -228,7 +228,7 @@ pub fn tokenize(src: &str) -> LexerResult {
         }
         
         if let Some(z) = &zone {
-            if z != "pug" {
+            if z != "view" {
                 if zone_base_indent == -1 {
                     zone_base_indent = indent as isize;
                 }
@@ -246,7 +246,7 @@ pub fn tokenize(src: &str) -> LexerResult {
             }
         }
         
-        // Pug zone (or pre-zone text)
+        // View zone (or pre-zone text)
         let current_indent = *indent_stack.last().unwrap();
         if indent > current_indent {
             indent_stack.push(indent);

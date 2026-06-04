@@ -3,7 +3,7 @@
   onClose: () => void
   title: string
 
-- pug
+- view
   if isOpen
     div.modal-overlay
       @click

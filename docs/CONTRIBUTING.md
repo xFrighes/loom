@@ -124,7 +124,7 @@ All tests must pass: `pnpm -r test`.
 
 The parser is a hand-written recursive descent parser. The lexer emits `INDENT` / `DEDENT` pairs (Python-style) so the parser never needs to measure whitespace itself.
 
-Zone headers (`- pug`, `- ts`, etc.) are emitted as `CONTEXT_SWITCH` tokens. The parser collects raw zone content and processes each zone separately after the full token stream is consumed.
+Zone headers (`- view`, `- ts`, etc.) are emitted as `CONTEXT_SWITCH` tokens. The parser collects raw zone content and processes each zone separately after the full token stream is consumed.
 
 ### Codegen
 

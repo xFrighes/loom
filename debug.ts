@@ -4,7 +4,7 @@ const src = `
 - state
   count: number = 0
 
-- pug
+- view
   button
     @click
       const count = 5

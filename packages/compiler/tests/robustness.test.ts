@@ -3,7 +3,7 @@ import { analyze, compile } from '../src/index.js'
 
 describe('security and robustness diagnostics', () => {
   it('emits strict a11y diagnostics for unlabeled controls and missing keyboard paths', () => {
-    const result = analyze(`- pug
+    const result = analyze(`- view
 button
 div
   :
@@ -17,7 +17,7 @@ div
   })
 
   it('scans unsafe HTML, URLs, and event expressions before codegen', () => {
-    const result = analyze(`- pug
+    const result = analyze(`- view
 a
   :
     href "javascript:alert(1)"
@@ -37,7 +37,7 @@ button
   })
 
   it('reports bundle budget warnings from target codegen', () => {
-    const result = compile('- pug\ndiv Hello', {
+    const result = compile('- view\ndiv Hello', {
       componentName: 'Budget',
       target: 'react',
       bundleBudgetBytes: 1,

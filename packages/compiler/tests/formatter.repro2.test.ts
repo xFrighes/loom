@@ -3,7 +3,7 @@ import { formatLoom } from '../src/printer.js'
 
 describe('Loom Formatter Round-trip', () => {
   it('should not merge comments with text when inlining', () => {
-    const source = `- pug
+    const source = `- view
 div
   // comment
   text

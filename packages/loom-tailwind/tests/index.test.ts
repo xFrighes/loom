@@ -8,7 +8,7 @@ import {
 describe('@loom-ui/tailwind', () => {
   it('extracts shorthand classes and static class attrs', () => {
     const source = [
-      '- pug',
+      '- view',
       'div.rounded.border',
       '  :',
       '    class bg-sky-500 text-white px-4',
@@ -25,7 +25,7 @@ describe('@loom-ui/tailwind', () => {
 
   it('keeps dynamic class expressions as metadata instead of fake static candidates', () => {
     const source = [
-      '- pug',
+      '- view',
       'div',
       '  :',
       "    class {isActive ? 'text-green-500' : 'text-slate-500'}",
@@ -39,12 +39,12 @@ describe('@loom-ui/tailwind', () => {
   it('returns an extractor shape compatible with Tailwind content hooks', () => {
     const extractor = createLoomTailwindExtractor()
     expect(extractor.extensions).toEqual(['loom'])
-    expect(extractor.extract('- pug\ndiv.card')).toEqual(['card'])
+    expect(extractor.extract('- view\ndiv.card')).toEqual(['card'])
   })
 
   it('extracts classes from control-flow branches, loops, and slot content', () => {
     const source = [
-      '- pug',
+      '- view',
       'Layout.shell',
       '  slot:nav',
       '    a.nav-link',
@@ -70,7 +70,7 @@ describe('@loom-ui/tailwind', () => {
   })
 
   it('fails closed on invalid loom input', () => {
-    expect(extractTailwindCandidates('- pug\nelse')).toEqual({
+    expect(extractTailwindCandidates('- view\nelse')).toEqual({
       classes: [],
       dynamicExpressions: [],
     })

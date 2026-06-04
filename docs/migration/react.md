@@ -39,7 +39,7 @@ Create a complete leaf component first.
 - computed
   isBusy = count > 9
 
-- pug
+- view
 section.counter-card
   ::
     padding 1rem
@@ -86,7 +86,7 @@ Prefer plain props and callback props at the boundary. Keep React context, route
   disabled: boolean = false
   onSubmit: () => void
 
-- pug
+- view
 button.primary-action
   :
     type button
@@ -104,7 +104,7 @@ Use `- state` for local UI state that is owned by the component. Keep shared sta
 - state
   open: boolean = false
 
-- pug
+- view
 button
   :
     type button
@@ -122,7 +122,7 @@ Move logic into `- ts` only when it is already React-specific or depends on exis
   import { useId } from 'react'
   const inputId = useId()
 
-- pug
+- view
 label
   :
     for {inputId}

@@ -3,7 +3,7 @@ import { formatLoom } from '../src/printer.js'
 
 describe('Loom Formatter Round-trip', () => {
   it('should preserve comments inside elements', () => {
-    const source = `- pug
+    const source = `- view
 div
   // This is a comment
   span Hello
@@ -13,7 +13,7 @@ div
   })
 
   it('should not inline elements with comment children', () => {
-    const source = `- pug
+    const source = `- view
 div
   // comment
 `
@@ -22,7 +22,7 @@ div
   })
 
   it('should preserve top-level comments', () => {
-    const source = `- pug
+    const source = `- view
 // top level
 div
 `

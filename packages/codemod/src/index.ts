@@ -588,7 +588,7 @@ function assembleLoom(props: string, logic: string, markup: string): string {
     result += `- ts\n  ${logic.split('\n').join('\n  ')}\n\n`
   }
   if (markup) {
-    result += `- pug\n${markup}`
+    result += `- view\n${markup}`
   }
   return result
 }

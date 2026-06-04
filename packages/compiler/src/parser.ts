@@ -137,7 +137,7 @@ function parseFile(s: TokenStream): LoomFile {
       const switchTok = s.consume()
       const zoneName = switchTok.value
 
-      if (zoneName === 'pug') {
+      if (zoneName === 'view') {
         markupParts.push(parseMarkupChildren(s, 0))
       } else {
         const lines: Token[] = []

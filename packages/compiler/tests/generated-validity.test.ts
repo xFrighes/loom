@@ -57,7 +57,7 @@ describe('generated framework validity', () => {
   const users = [{ id: '1', name: 'Ada' }]
   const isLoading = false
   const submit = () => {}
-- pug
+- view
 section.card
   :
     aria-label "People"
@@ -80,7 +80,7 @@ section.card
       name: 'polymorphic element, slots, escaped text, and scoped styles',
       source: `- ts
   const tag = 'a'
-- pug
+- view
 Layout
   slot:nav
     p Navigation
@@ -110,7 +110,7 @@ element.link
 
   it('emits valid Svelte component syntax for markup, events, control flow, and styles', () => {
     const result = compile(
-      `- pug
+      `- view
 button.card
   @click.prevent
     submit()

@@ -205,7 +205,7 @@ function analyzeIndentationStyle(src: string): CompilerDiagnostic[] {
   const diagnostics: CompilerDiagnostic[] = []
   const lines = src.split('\n')
   let offset = 0
-  let inPug = true
+  let inView = true
   let seenContext = false
 
   for (let index = 0; index < lines.length; index++) {
@@ -216,7 +216,7 @@ function analyzeIndentationStyle(src: string): CompilerDiagnostic[] {
     const contextMatch = trimmed.match(/^- ([A-Za-z][\w-]*)(?:\s|$)/)
     if (contextMatch && rawLine.search(/\S/) === 0) {
       seenContext = true
-      inPug = contextMatch[1] === 'pug'
+      inView = contextMatch[1] === 'view'
       offset += rawLine.length + 1
       continue
     }
@@ -226,7 +226,7 @@ function analyzeIndentationStyle(src: string): CompilerDiagnostic[] {
       continue
     }
 
-    if (!seenContext || inPug) {
+    if (!seenContext || inView) {
       const indentText = rawLine.match(/^[ \t]*/)?.[0] ?? ''
       const column = indentText.length + 1
       const span = spanForLine(line, 1, Math.max(1, column), offset)

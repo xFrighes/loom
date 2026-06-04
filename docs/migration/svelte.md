@@ -30,7 +30,7 @@ export default defineConfig({
   active: boolean = false
   onToggle: () => void
 
-- pug
+- view
 button.member-chip
   :
     type button
@@ -64,7 +64,7 @@ Prefer callback props for cross-framework parity. They are easy to pass from Sve
   value: string
   onClear: () => void
 
-- pug
+- view
 div.search-pill
   span {value}
   button
@@ -84,7 +84,7 @@ Use Svelte stores from `- ts` only when the component is committed to the Svelte
 - ts
   import { cart } from '../stores/cart'
 
-- pug
+- view
 section.cart-status
   p Items: {$cart.count}
   button

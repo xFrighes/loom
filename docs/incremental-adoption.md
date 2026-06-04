@@ -44,7 +44,7 @@ Create a simple Loom component in your project.
   import { ref } from 'vue'
   const count = ref(initialCount)
 
-- pug
+- view
   div.counter
     p Count: {count}
     button
@@ -85,7 +85,7 @@ Loom's `- ts` zone can use Vue's reactivity APIs directly.
   count: number
   onIncrement: () => void
 
-- pug
+- view
   div
     p Shared Count: {count}
     button
@@ -104,7 +104,7 @@ You can use Pinia or Vuex stores within Loom components.
   import { useCounterStore } from '@/stores/counter'
   const store = useCounterStore()
 
-- pug
+- view
   div
     p Store Count: {store.count}
     button
@@ -133,7 +133,7 @@ provide('theme', 'dark')
   import { inject } from 'vue'
   const theme = inject('theme', 'light')
 
-- pug
+- view
   button.btn
     :
       class {theme}

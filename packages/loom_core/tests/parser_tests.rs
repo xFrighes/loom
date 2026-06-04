@@ -24,7 +24,7 @@ fn test_simple_element() {
 
 #[test]
 fn test_top_level_zones() {
-    let src = "- props\n  name: string = \"world\"\n\n- pug\nh1 Hello {name}";
+    let src = "- props\n  name: string = \"world\"\n\n- view\nh1 Hello {name}";
     let res = parse(src).unwrap();
     
     assert!(res.props.is_some());

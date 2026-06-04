@@ -24,7 +24,7 @@ describe('eslint-plugin-loom', () => {
   it('maps compiler diagnostics back to .loom source spans', async () => {
     const eslint = createLoomEslint()
 
-    const [result] = await eslint.lintText('- pug\ndiv\n  :\n    type email\n    type text', {
+    const [result] = await eslint.lintText('- view\ndiv\n  :\n    type email\n    type text', {
       filePath: 'Component.loom',
     })
 
@@ -37,14 +37,14 @@ describe('eslint-plugin-loom', () => {
   it('returns no messages for valid loom files', async () => {
     const eslint = createLoomEslint()
 
-    const [result] = await eslint.lintText('- pug\ndiv Hello', { filePath: 'Component.loom' })
+    const [result] = await eslint.lintText('- view\ndiv Hello', { filePath: 'Component.loom' })
     expect(result?.messages).toEqual([])
   })
 
   it('reports parser diagnostics instead of placeholder JavaScript errors', async () => {
     const eslint = createLoomEslint()
 
-    const [result] = await eslint.lintText('- pug\ndiv\n  span\n p Bad indent', {
+    const [result] = await eslint.lintText('- view\ndiv\n  span\n p Bad indent', {
       filePath: 'Component.loom',
     })
 

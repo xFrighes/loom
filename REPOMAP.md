@@ -1,6 +1,6 @@
 # Loom Repository Map
 
-Generated: 2026-06-03T18:40:06.543Z
+Generated: 2026-06-04T20:31:31.530Z
 
 ## 📦 @loom-ui/codemod
 Path: `packages/codemod`
@@ -482,7 +482,7 @@ export function composeSourceMaps(
 
 ---
 
-## 📦 vscode-loom
+## 📦 vscode-loom-ui
 Path: `packages/vscode-loom`
 Purpose: Syntax highlighting, diagnostics, formatting, hovers, snippets, and preview support for Loom files
 

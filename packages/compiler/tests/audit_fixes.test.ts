@@ -7,7 +7,7 @@ describe('Audit Fixes: React Compound Assignments', () => {
     const src = `
 - state
   count: number = 0
-- pug
+- view
   button
     @click
       count += 1
@@ -24,7 +24,7 @@ describe('Audit Fixes: React Compound Assignments', () => {
     const src = `
 - state
   count: number = 0
-- pug
+- view
   button
     @click
       const count = 10
@@ -51,7 +51,7 @@ describe('Audit Fixes: Arrow Function Divergence', () => {
 describe('Audit Fixes: Vue Directive Injection', () => {
   it('should not incorrectly replace tags inside attributes', () => {
     const src = `
-- pug
+- view
   if show
     div
       :
@@ -65,7 +65,7 @@ describe('Audit Fixes: Vue Directive Injection', () => {
     const src = `
 - state
   count: number = 0
-- pug
+- view
   button
     @click
       const count = 10
@@ -79,14 +79,14 @@ describe('Audit Fixes: Vue Directive Injection', () => {
 
 describe('Audit Fixes: Compile Options Validation', () => {
   it('rejects component names that would generate invalid JavaScript', () => {
-    expect(() => compile('- pug\ndiv', { componentName: 'bad-name', target: 'react' })).toThrow(
+    expect(() => compile('- view\ndiv', { componentName: 'bad-name', target: 'react' })).toThrow(
       /Invalid componentName/,
     )
   })
 
   it('rejects unknown targets from JavaScript callers', () => {
     expect(() =>
-      compile('- pug\ndiv', { componentName: 'Test', target: 'solid' as 'react' }),
+      compile('- view\ndiv', { componentName: 'Test', target: 'solid' as 'react' }),
     ).toThrow(/Unknown target: solid/)
   })
 })
