@@ -99,14 +99,11 @@
     }
   },
   "scripts": {
-    "build": "tsup src/extension.ts --format cjs --platform node --external vscode --external vscode-languageclient/node --sourcemap",
-    "dev": "tsup src/extension.ts --format cjs --platform node --external vscode --external vscode-languageclient/node --sourcemap --watch",
+    "build": "tsup src/extension.ts --format cjs --platform node --external vscode --sourcemap",
+    "dev": "tsup src/extension.ts --format cjs --platform node --external vscode --sourcemap --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "package": "vsce package"
-  },
-  "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",
@@ -114,6 +111,7 @@
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0",
-    "vsce": "^2.15.0"
+    "vsce": "^2.15.0",
+    "vscode-languageclient": "^9.0.1"
   }
 }

@@ -8,3 +8,5 @@ src/**
 tsconfig.json
 tests/**
 *.vsix
+dist/*.cjs
+dist/*.cjs.map
