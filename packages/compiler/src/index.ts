@@ -1,7 +1,8 @@
 export { formatLoom, printLoom } from './printer.js'
 export { getFoldRanges } from './folds.js'
 export type { FoldRange } from './folds.js'
-export { parse, ParseError } from './parser.js'
+export { parse, parseWithDiagnostics, ParseError } from './parser.js'
+export type { ParseResult } from './parser.js'
 export { tokenize } from './lexer.js'
 export type { LexerResult, Token } from './lexer.js'
 export type { TK } from './lexer.js'
@@ -32,7 +33,7 @@ export type {
   WorkspacePackage,
 } from './workspace-index.js'
 
-import { parse, ParseError } from './parser.js'
+import { parseWithDiagnostics } from './parser.js'
 import { ReactTarget } from './codegen/react.js'
 import { VueTarget } from './codegen/vue.js'
 import { SvelteTarget } from './codegen/svelte.js'
@@ -95,28 +96,13 @@ export class CompileError extends Error {
 }
 
 export function analyze(src: string, options: AnalyzeOptions = {}): AnalyzeResult {
-  try {
-    const file = parse(src)
-    const diagnostics = [
-      ...validate(file, options),
-      ...analyzeIndentationStyle(src),
-    ]
-    return { file, diagnostics }
-  } catch (error) {
-    if (error instanceof ParseError) {
-      return {
-        diagnostics: [{
-          code: 'loom/parse',
-          severity: 'error',
-          message: error.message,
-          span: error.span,
-          source: 'parser',
-          suggestion: 'Fix the syntax at this source span and rerun compilation.',
-        }],
-      }
-    }
-    throw error
-  }
+  const parsed = parseWithDiagnostics(src)
+  const diagnostics = [
+    ...parsed.diagnostics,
+    ...(parsed.file ? validate(parsed.file, options) : []),
+    ...analyzeIndentationStyle(src),
+  ]
+  return { file: parsed.file, diagnostics }
 }
 
 /**

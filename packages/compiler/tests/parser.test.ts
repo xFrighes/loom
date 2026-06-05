@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parse } from '../src/parser.js'
+import { parse, parseWithDiagnostics } from '../src/parser.js'
 
 describe('parser – zones', () => {
   it('parses generics zone', () => {
@@ -187,5 +187,53 @@ describe('parser – implicit view zone', () => {
   it('parses markup without explicit - view switch', () => {
     const file = parse('div\n  p Hello')
     expect(file.markup).toHaveLength(1)
+  })
+})
+
+describe('parser – diagnostics', () => {
+  function codes(src: string) {
+    return parseWithDiagnostics(src).diagnostics.map((diagnostic) => diagnostic.code)
+  }
+
+  it('reports duplicate top-level zones', () => {
+    expect(codes('- props\n  title: string\n\n- props\n  count: number')).toContain('loom/duplicate-zone')
+  })
+
+  it('reports unknown zone-looking headers', () => {
+    expect(codes('- style\n  color red\n\n- view\np ok')).toContain('loom/unknown-zone')
+  })
+
+  it('reports malformed props, state, and computed declarations', () => {
+    const result = parseWithDiagnostics('- props\n  title\n\n- state\n  count = 0\n\n- computed\n  doubled =')
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(expect.arrayContaining([
+      'loom/prop-syntax',
+      'loom/state-syntax',
+      'loom/computed-syntax',
+    ]))
+  })
+
+  it('reports malformed selectors and unbalanced expressions', () => {
+    const result = parseWithDiagnostics('- view\ndiv.#bad\np {title')
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(expect.arrayContaining([
+      'loom/selector-syntax',
+      'loom/unbalanced-expression',
+    ]))
+  })
+
+  it('reports malformed each controls and recovers to later markup', () => {
+    const result = parseWithDiagnostics('- view\neach item of items\n  p hidden\np visible')
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain('loom/each-syntax')
+    expect(result.file?.markup?.some((node) => node.kind === 'element' && node.tag === 'p')).toBe(true)
+  })
+
+  it('reports malformed dimensions without valid bodies', () => {
+    const result = parseWithDiagnostics('- view\ndiv\n  :\n  ::\n  @click')
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(expect.arrayContaining([
+      'loom/dimension-body',
+    ]))
+  })
+
+  it('reports malformed slot syntax', () => {
+    expect(codes('- view\nslot:')).toContain('loom/slot-syntax')
   })
 })

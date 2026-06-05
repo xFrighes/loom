@@ -90,12 +90,12 @@ function classifyLine(trimmed: string): TK {
   if (trimmed === ':') return TK.DIMENSION_DATA
   if (/^@[\w]/.test(trimmed)) return TK.DIMENSION_BEHAVIOR
   // Control flow
-  if (/^if\s/.test(trimmed) || trimmed === 'if') return TK.CONTROL_IF
-  if (/^else if\s/.test(trimmed)) return TK.CONTROL_ELSEIF
+  if (/^if(?:\s|$)/.test(trimmed)) return TK.CONTROL_IF
+  if (/^else if(?:\s|$)/.test(trimmed)) return TK.CONTROL_ELSEIF
   if (trimmed === 'else') return TK.CONTROL_ELSE
-  if (/^each\s+\w+(\s*,\s*\w+)?\s+in\s+/.test(trimmed)) return TK.CONTROL_EACH
+  if (/^each(?:\s|$)/.test(trimmed)) return TK.CONTROL_EACH
   // Slot
-  if (/^slot(:[a-zA-Z][\w-]*)?(\([^)]*\))?$/.test(trimmed)) return TK.SLOT
+  if (/^slot(?:[:(]|\s|$)/.test(trimmed)) return TK.SLOT
   // Component (starts with uppercase, optionally followed by class/id selector syntax)
   if (/^[A-Z][a-zA-Z0-9]*([.#][a-zA-Z0-9_-]*)*(\s|$)/.test(trimmed)) return TK.COMPONENT
   // Tag (starts with lowercase letter, or starts with tag+class/id syntax)

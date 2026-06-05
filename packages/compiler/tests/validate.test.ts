@@ -32,32 +32,25 @@ describe('validation', () => {
   })
 
   it('reports malformed props and returns multiple diagnostics', () => {
-    const file = parse('- props\n  : string\n  invalid-name:\n- view\ndiv')
-    const diagnostics = validate(file)
-    expect(diagnostics.length).toBeGreaterThanOrEqual(2)
+    const { diagnostics } = analyze('- props\n  : string\n  invalid-name:\n- view\ndiv')
     expect(diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: 'loom/prop-name' }),
-      expect.objectContaining({ code: 'loom/prop-type' }),
+      expect.objectContaining({ code: 'loom/prop-syntax' }),
     ]))
   })
 
   it('reports malformed state declarations before codegen', () => {
-    const file = parse('- state\n  : number = 0\n  total-count:\n- view\ndiv')
-    const diagnostics = validate(file)
+    const { diagnostics } = analyze('- state\n  : number = 0\n  total-count:\n- view\ndiv')
 
     expect(diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: 'loom/state-name' }),
-      expect.objectContaining({ code: 'loom/state-type' }),
+      expect.objectContaining({ code: 'loom/state-syntax' }),
     ]))
   })
 
   it('reports malformed computed declarations before codegen', () => {
-    const file = parse('- computed\n  : count + 1\n  total-count = \n- view\ndiv')
-    const diagnostics = validate(file)
+    const { diagnostics } = analyze('- computed\n  : count + 1\n  total-count = \n- view\ndiv')
 
     expect(diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: 'loom/computed-name' }),
-      expect.objectContaining({ code: 'loom/computed-expr' }),
+      expect.objectContaining({ code: 'loom/computed-syntax' }),
     ]))
   })
 

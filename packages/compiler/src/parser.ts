@@ -28,6 +28,7 @@ import type {
   StyleBlock,
   SourceSpan,
 } from './ast.js'
+import type { CompilerDiagnostic } from './validate.js'
 
 // ─── Parse errors ─────────────────────────────────────────────────────────────
 
@@ -47,6 +48,8 @@ export class ParseError extends Error {
 // ─── Token stream helper ──────────────────────────────────────────────────────
 
 class TokenStream {
+  public readonly diagnostics: CompilerDiagnostic[] = []
+
   private pos = 0
   constructor(private tokens: Token[]) {}
 
@@ -78,6 +81,43 @@ class TokenStream {
     }
     return this.consume()
   }
+
+  report(message: string, span: SourceSpan, code = 'loom/parse') {
+    this.diagnostics.push(parseDiagnostic(message, span, code))
+  }
+}
+
+export type ParseResult = {
+  file?: LoomFile
+  diagnostics: CompilerDiagnostic[]
+}
+
+const KNOWN_ZONE_NAMES = new Set([
+  'generics',
+  'props',
+  'state',
+  'computed',
+  'meta',
+  'schema',
+  'server',
+  'tokens',
+  'onMount',
+  'onUpdate',
+  'onUnmount',
+  'ts',
+  'js',
+  'view',
+])
+
+function parseDiagnostic(message: string, span: SourceSpan, code = 'loom/parse'): CompilerDiagnostic {
+  return {
+    code,
+    severity: 'error',
+    message,
+    span,
+    source: 'parser',
+    suggestion: 'Fix the syntax at this source span and rerun compilation.',
+  }
 }
 
 function mergeSpans(...spans: Array<SourceSpan | undefined>): SourceSpan | undefined {
@@ -108,17 +148,28 @@ export function parse(src: string): LoomFile {
     return rustResult as LoomFile
   }
 
-  const { tokens, errors } = tokenize(src)
-  if (errors.length > 0) {
-    const error = errors[0]
-    throw new ParseError(error.message, error.span ?? tokens[0]?.span ?? {
-      start: { line: error.line, column: 1, offset: 0 },
-      end: { line: error.line, column: 1, offset: 0 },
+  const result = parseWithDiagnostics(src)
+  const fatal = result.diagnostics.find((diagnostic) => diagnostic.severity === 'error')
+  if (fatal) throw new ParseError(fatal.message, fatal.span)
+  if (!result.file) {
+    throw new ParseError('Unable to parse Loom source.', {
+      start: { line: 1, column: 1, offset: 0 },
+      end: { line: 1, column: 1, offset: 0 },
     })
   }
+  return result.file
+}
+
+export function parseWithDiagnostics(src: string): ParseResult {
+  const { tokens, errors } = tokenize(src)
+  const diagnostics = errors.map((error) => parseDiagnostic(error.message, error.span ?? tokens[0]?.span ?? {
+    start: { line: error.line, column: 1, offset: 0 },
+    end: { line: error.line, column: 1, offset: 0 },
+  }))
 
   const stream = new TokenStream(tokens)
-  return parseFile(stream)
+  const file = parseFile(stream)
+  return { file, diagnostics: diagnostics.concat(stream.diagnostics) }
 }
 
 // ─── File-level parser ────────────────────────────────────────────────────────
@@ -144,9 +195,19 @@ function parseFile(s: TokenStream): LoomFile {
         while (!s.is(TK.EOF) && !s.is(TK.CONTEXT_SWITCH)) {
           lines.push(s.consume())
         }
+        if (rawZones.has(zoneName)) {
+          s.report(`Duplicate top-level zone "- ${zoneName}".`, switchTok.span, 'loom/duplicate-zone')
+        }
         rawZones.set(zoneName, lines)
       }
     } else {
+      const tok = s.peek()
+      const unknownZone = tok.value.trim().match(/^-\s+([A-Za-z][\w-]*)(?:\s|$)/)
+      if (tok.indent === 0 && unknownZone && !KNOWN_ZONE_NAMES.has(unknownZone[1])) {
+        s.report(`Unknown top-level zone "- ${unknownZone[1]}".`, tok.span, 'loom/unknown-zone')
+        s.consume()
+        continue
+      }
       markupParts.push(parseMarkupChildren(s, 0))
     }
     
@@ -195,15 +256,15 @@ function parseFile(s: TokenStream): LoomFile {
   }
 
   if (rawZones.has('props')) {
-    file.props = parsePropsZone(rawZones.get('props')!)
+    file.props = parsePropsZone(rawZones.get('props')!, s)
   }
 
   if (rawZones.has('state')) {
-    file.state = parseStateZone(rawZones.get('state')!)
+    file.state = parseStateZone(rawZones.get('state')!, s)
   }
 
   if (rawZones.has('computed')) {
-    file.computed = parseComputedZone(rawZones.get('computed')!)
+    file.computed = parseComputedZone(rawZones.get('computed')!, s)
   }
 
   if (rawZones.has('onMount')) {
@@ -335,7 +396,7 @@ function findZoneDelimiter(line: string): number {
 
 // ─── Props zone parser ────────────────────────────────────────────────────────
 
-function parsePropsZone(lines: Token[]): PropDecl[] {
+function parsePropsZone(lines: Token[], s: TokenStream): PropDecl[] {
   const props: PropDecl[] = []
   for (const line of lines) {
     const trimmed = line.value.trim()
@@ -354,17 +415,22 @@ function parsePropsZone(lines: Token[]): PropDecl[] {
 
     const colonIdx = findTopLevelColon(typePart)
     if (colonIdx === -1) {
-      props.push({ span: line.span, name: typePart.trim(), type: 'any', defaultValue })
-    } else {
-      const name = typePart.slice(0, colonIdx).trim()
-      const type = typePart.slice(colonIdx + 1).trim()
-      props.push({ span: line.span, name, type, defaultValue })
+      s.report(`Malformed prop declaration "${trimmed}". Expected "name: Type".`, line.span, 'loom/prop-syntax')
+      continue
     }
+
+    const name = typePart.slice(0, colonIdx).trim()
+    const type = typePart.slice(colonIdx + 1).trim()
+    if (!isIdentifier(name) || !type) {
+      s.report(`Malformed prop declaration "${trimmed}". Expected "name: Type".`, line.span, 'loom/prop-syntax')
+      continue
+    }
+    props.push({ span: line.span, name, type, defaultValue })
   }
   return props
 }
 
-function parseStateZone(lines: Token[]): StateDecl[] {
+function parseStateZone(lines: Token[], s: TokenStream): StateDecl[] {
   const state: StateDecl[] = []
   for (const line of lines) {
     const trimmed = line.value.trim()
@@ -383,17 +449,22 @@ function parseStateZone(lines: Token[]): StateDecl[] {
 
     const colonIdx = findTopLevelColon(typePart)
     if (colonIdx === -1) {
-      state.push({ span: line.span, name: typePart.trim(), type: 'any', defaultValue })
-    } else {
-      const name = typePart.slice(0, colonIdx).trim()
-      const type = typePart.slice(colonIdx + 1).trim()
-      state.push({ span: line.span, name, type, defaultValue })
+      s.report(`Malformed state declaration "${trimmed}". Expected "name: Type".`, line.span, 'loom/state-syntax')
+      continue
     }
+
+    const name = typePart.slice(0, colonIdx).trim()
+    const type = typePart.slice(colonIdx + 1).trim()
+    if (!isIdentifier(name) || !type) {
+      s.report(`Malformed state declaration "${trimmed}". Expected "name: Type".`, line.span, 'loom/state-syntax')
+      continue
+    }
+    state.push({ span: line.span, name, type, defaultValue })
   }
   return state
 }
 
-function parseComputedZone(lines: Token[]): ComputedDecl[] {
+function parseComputedZone(lines: Token[], s: TokenStream): ComputedDecl[] {
   const computed: ComputedDecl[] = []
   for (const line of lines) {
     const trimmed = line.value.trim()
@@ -403,13 +474,24 @@ function parseComputedZone(lines: Token[]): ComputedDecl[] {
     const colonIdx = findTopLevelColon(trimmed)
     const splitIdx = eqIdx !== -1 ? eqIdx : colonIdx
 
-    if (splitIdx === -1) continue
+    if (splitIdx === -1) {
+      s.report(`Malformed computed declaration "${trimmed}". Expected "name = expression".`, line.span, 'loom/computed-syntax')
+      continue
+    }
 
     const name = trimmed.slice(0, splitIdx).trim()
     const expr = trimmed.slice(splitIdx + 1).trim()
+    if (!isIdentifier(name) || !expr) {
+      s.report(`Malformed computed declaration "${trimmed}". Expected "name = expression".`, line.span, 'loom/computed-syntax')
+      continue
+    }
     computed.push({ span: line.span, name, expr })
   }
   return computed
+}
+
+function isIdentifier(value: string): boolean {
+  return /^[A-Za-z_$][\w$]*$/.test(value)
 }
 
 function parseLogicStatements(lines: Token[]): LogicStatement[] {
@@ -503,7 +585,8 @@ function parseMarkupChildrenWithOptions(
         break
 
       case TK.CONTROL_EACH: {
-        nodes.push(parseEach(s))
+        const eachNode = parseEach(s)
+        if (eachNode) nodes.push(eachNode)
         break
       }
 
@@ -520,12 +603,15 @@ function parseMarkupChildrenWithOptions(
 
       case TK.TEXT: {
         const t = s.consume()
+        if (!hasBalancedExpressionBraces(t.value)) {
+          s.report(`Unbalanced expression braces in text "${t.value}".`, t.span, 'loom/unbalanced-expression')
+        }
         nodes.push({ kind: 'text', value: t.value, span: t.span } as TextNode)
         break
       }
 
       default:
-        // Unknown token at this level — skip to avoid infinite loop
+        s.report(`Unexpected ${tok.type} token in markup.`, tok.span, 'loom/unexpected-token')
         s.consume()
     }
   }
@@ -538,6 +624,7 @@ function parseMarkupChildrenWithOptions(
 function parseElement(s: TokenStream): ElementNode {
   const tagTok = s.consume() // TAG or COMPONENT
   const { tag, classes, id, inlineText } = parseTagSelector(tagTok.value, tagTok.span)
+  validateTagSelector(tagTok.value, tagTok.span, s)
   const elemIndent = tagTok.indent
 
   const node: ElementNode = {
@@ -551,6 +638,9 @@ function parseElement(s: TokenStream): ElementNode {
 
   // If there's inline text after the tag (e.g. "p Hello world"), add as text child
   if (inlineText) {
+    if (!hasBalancedExpressionBraces(inlineText.value)) {
+      s.report(`Unbalanced expression braces in text "${inlineText.value}".`, inlineText.span, 'loom/unbalanced-expression')
+    }
     node.children.push({
       kind: 'text',
       value: inlineText.value,
@@ -581,10 +671,16 @@ function parseDimensionsAndChildren(s: TokenStream, node: ElementNode, baseInden
     if (tok.indent < baseIndent) break
 
     if (tok.type === TK.DIMENSION_DATA) {
-      s.consume() // ":"
+      const dimensionTok = s.consume() // ":"
+      if (!s.is(TK.INDENT)) {
+        s.report('Data dimension ":" must have an indented body.', dimensionTok.span, 'loom/dimension-body')
+      }
       node.data = (node.data ?? []).concat(parseDataDimension(s))
     } else if (tok.type === TK.DIMENSION_STYLE) {
-      s.consume() // "::"
+      const dimensionTok = s.consume() // "::"
+      if (!s.is(TK.INDENT)) {
+        s.report('Style dimension "::" must have an indented body.', dimensionTok.span, 'loom/dimension-body')
+      }
       node.styles = (node.styles ?? []).concat(parseStyleDimension(s))
     } else if (tok.type === TK.DIMENSION_BEHAVIOR) {
       if (!node.behaviors) node.behaviors = []
@@ -596,6 +692,7 @@ function parseDimensionsAndChildren(s: TokenStream, node: ElementNode, baseInden
         // If we can't parse children but we are at the right indent, we might have
         // unhandled tokens. Skip one to avoid infinite loop.
         if (s.peek().indent >= baseIndent) {
+           s.report(`Unexpected ${s.peek().type} token in markup.`, s.peek().span, 'loom/unexpected-token')
            s.consume()
         } else {
            break
@@ -662,6 +759,55 @@ function parseTagSelector(raw: string, lineSpan?: SourceSpan): TagSelectorResult
   return { tag, classes, id, inlineText }
 }
 
+function validateTagSelector(raw: string, span: SourceSpan, s: TokenStream) {
+  const selector = raw.split(/\s/, 1)[0] ?? raw
+  const parts = selector.split(/(?=[.#])/)
+  const tag = parts[0]
+  if (tag && !/^(?:element|[a-z][a-zA-Z0-9]*|[A-Z][a-zA-Z0-9]*)$/.test(tag)) {
+    s.report(`Invalid selector "${selector}".`, span, 'loom/selector-syntax')
+  }
+
+  for (const part of parts.slice(1)) {
+    if (part.startsWith('.') && !/^\.([A-Za-z_][\w-]*|\$[\w$]*)$/.test(part)) {
+      s.report(`Invalid class selector "${part}" in "${selector}".`, span, 'loom/selector-syntax')
+    } else if (part.startsWith('#') && !/^#[A-Za-z_][\w-]*$/.test(part)) {
+      s.report(`Invalid id selector "${part}" in "${selector}".`, span, 'loom/selector-syntax')
+    }
+  }
+}
+
+function hasBalancedExpressionBraces(value: string): boolean {
+  let depth = 0
+  let quote: string | undefined
+  let escaped = false
+
+  for (const char of value) {
+    if (escaped) {
+      escaped = false
+      continue
+    }
+    if (char === '\\') {
+      escaped = true
+      continue
+    }
+    if (quote) {
+      if (char === quote) quote = undefined
+      continue
+    }
+    if (depth > 0 && (char === '"' || char === "'" || char === '`')) {
+      quote = char
+      continue
+    }
+    if (char === '{') depth++
+    else if (char === '}') {
+      depth--
+      if (depth < 0) return false
+    }
+  }
+
+  return depth === 0 && !quote
+}
+
 // ─── Data dimension parser ────────────────────────────────────────────────────
 
 function parseDataDimension(s: TokenStream): DataAttr[] {
@@ -681,16 +827,29 @@ function parseDataDimension(s: TokenStream): DataAttr[] {
     if (!line) continue
 
     if (line.startsWith('...')) {
-      attrs.push({ kind: 'spread', expr: line.slice(3), span: tok.span })
+      const expr = line.slice(3).trim()
+      if (!expr || !hasBalancedExpressionBraces(expr)) {
+        s.report(`Malformed spread attribute "${line}".`, tok.span, 'loom/attr-syntax')
+        continue
+      }
+      attrs.push({ kind: 'spread', expr, span: tok.span })
       continue
     }
 
     if (line.startsWith('bind:')) {
       const rest = line.slice(5)
       const spaceIdx = findTopLevelWhitespace(rest)
+      if (!rest.trim()) {
+        s.report(`Malformed bind attribute "${line}".`, tok.span, 'loom/attr-syntax')
+        continue
+      }
       if (spaceIdx !== -1) {
         const bindName = rest.slice(0, spaceIdx)
         const bindExpr = rest.slice(spaceIdx + 1).trim()
+        if (!bindName || !bindExpr || !hasBalancedExpressionBraces(bindExpr)) {
+          s.report(`Malformed bind attribute "${line}".`, tok.span, 'loom/attr-syntax')
+          continue
+        }
         attrs.push({ kind: 'bind', name: bindName, expr: bindExpr, span: tok.span })
       } else {
         // bind:name without explicit expr — use name itself as expr
@@ -705,12 +864,18 @@ function parseDataDimension(s: TokenStream): DataAttr[] {
         attrs.push({ kind: 'as', expr, span: tok.span })
         continue
       }
+      s.report(`Malformed polymorphic "as" attribute "${line}".`, tok.span, 'loom/attr-syntax')
+      continue
     }
 
     const spaceIdx = findTopLevelWhitespace(line)
     if (spaceIdx !== -1) {
       const name = line.slice(0, spaceIdx)
       const value = line.slice(spaceIdx + 1).trim()
+      if (!name || !value || !hasBalancedExpressionBraces(value)) {
+        s.report(`Malformed data attribute "${line}".`, tok.span, 'loom/attr-syntax')
+        continue
+      }
       const dynamicExpr = unwrapBalancedBraces(value)
       if (dynamicExpr !== null) {
         attrs.push({ kind: 'dynamic', name, expr: dynamicExpr, span: tok.span })
@@ -722,6 +887,10 @@ function parseDataDimension(s: TokenStream): DataAttr[] {
         continue
       }
 
+      if ((value.startsWith('"') && !value.endsWith('"')) || (value.startsWith("'") && !value.endsWith("'"))) {
+        s.report(`Malformed quoted attribute "${line}".`, tok.span, 'loom/attr-syntax')
+        continue
+      }
       attrs.push({ kind: 'static', name, value, span: tok.span })
       continue
     }
@@ -766,6 +935,8 @@ function parseStyleRules(s: TokenStream): StyleRule[] {
         s.consume()
         nestedRules.push(...parseStyleRules(s))
         if (s.is(TK.DEDENT)) s.consume()
+      } else {
+        s.report(`Nested style selector "${line}" must have an indented body.`, tok.span, 'loom/style-syntax')
       }
 
       rules.push({
@@ -784,6 +955,8 @@ function parseStyleRules(s: TokenStream): StyleRule[] {
           value: line.slice(spaceIdx + 1).trim(),
           span: tok.span,
         } as CSSDecl)
+      } else {
+        s.report(`Malformed style declaration "${line}". Expected "property value".`, tok.span, 'loom/style-syntax')
       }
     }
   }
@@ -800,6 +973,9 @@ function parseBehaviorDimension(s: TokenStream): BehaviorBlock {
   const [eventPart, ...modParts] = raw.split('.')
   const event = eventPart
   const modifiers = modParts
+  if (!isIdentifier(event)) {
+    s.report(`Malformed behavior dimension "${tok.value}".`, tok.span, 'loom/behavior-syntax')
+  }
 
   const bodyTokens: Token[] = []
   s.skipNewlines()
@@ -819,6 +995,8 @@ function parseBehaviorDimension(s: TokenStream): BehaviorBlock {
       }
       s.consume()
     }
+  } else {
+    s.report(`Behavior dimension "${tok.value}" must have an indented body.`, tok.span, 'loom/dimension-body')
   }
 
   const body = parseLogicStatements(bodyTokens)
@@ -835,6 +1013,9 @@ function parseBehaviorDimension(s: TokenStream): BehaviorBlock {
 function parseIf(s: TokenStream): IfNode {
   const tok = s.consume() // CONTROL_IF
   const condition = tok.value.replace(/^if\s+/, '').trim()
+  if (!condition) {
+    s.report('Malformed if control. Expected "if condition".', tok.span, 'loom/control-syntax')
+  }
 
   s.skipNewlines()
   let consequent: MarkupNode[] = []
@@ -842,6 +1023,8 @@ function parseIf(s: TokenStream): IfNode {
     const indentTok = s.consume()
     consequent = parseMarkupChildrenWithOptions(s, indentTok.indent, true)
     if (s.is(TK.DEDENT)) s.consume()
+  } else {
+    s.report('If control must have an indented body.', tok.span, 'loom/control-body')
   }
 
   s.skipNewlines()
@@ -865,6 +1048,9 @@ function parseIf(s: TokenStream): IfNode {
 function parseElseIf(s: TokenStream): ElseIfNode {
   const tok = s.consume() // CONTROL_ELSEIF
   const condition = tok.value.replace(/^else if\s+/, '').trim()
+  if (!condition) {
+    s.report('Malformed else-if control. Expected "else if condition".', tok.span, 'loom/control-syntax')
+  }
 
   s.skipNewlines()
   let consequent: MarkupNode[] = []
@@ -872,6 +1058,8 @@ function parseElseIf(s: TokenStream): ElseIfNode {
     const indentTok = s.consume()
     consequent = parseMarkupChildrenWithOptions(s, indentTok.indent, true)
     if (s.is(TK.DEDENT)) s.consume()
+  } else {
+    s.report('Else-if control must have an indented body.', tok.span, 'loom/control-body')
   }
 
   s.skipNewlines()
@@ -900,18 +1088,27 @@ function parseElseNode(s: TokenStream): ElseNode {
     const indentTok = s.consume()
     children = parseMarkupChildren(s, indentTok.indent)
     if (s.is(TK.DEDENT)) s.consume()
+  } else {
+    s.report('Else control must have an indented body.', tok.span, 'loom/control-body')
   }
   return { kind: 'else', children, span: mergeSpans(tok.span, spanFromNodes(children)) }
 }
 
-function parseEach(s: TokenStream): EachNode {
+function parseEach(s: TokenStream): EachNode | undefined {
   const tok = s.consume() // CONTROL_EACH
   const m = tok.value.match(/^each\s+(\w+)(?:\s*,\s*(\w+))?\s+in\s+(.+)$/)
-  if (!m) throw new ParseError(`Malformed each: "${tok.value}"`, tok.span)
+  if (!m) {
+    s.report(`Malformed each control "${tok.value}". Expected "each item in list".`, tok.span, 'loom/each-syntax')
+    skipMalformedBlock(s)
+    return undefined
+  }
 
   const item = m[1]
   const index = m[2]
   const { list, keyExpr } = splitEachListAndKey(m[3].trim())
+  if (!list || !hasBalancedExpressionBraces(list) || (keyExpr !== undefined && !hasBalancedExpressionBraces(keyExpr))) {
+    s.report(`Malformed each control "${tok.value}".`, tok.span, 'loom/each-syntax')
+  }
 
   s.skipNewlines()
   let children: MarkupNode[] = []
@@ -919,6 +1116,8 @@ function parseEach(s: TokenStream): EachNode {
     const indentTok = s.consume()
     children = parseMarkupChildren(s, indentTok.indent)
     if (s.is(TK.DEDENT)) s.consume()
+  } else {
+    s.report('Each control must have an indented body.', tok.span, 'loom/control-body')
   }
 
   return {
@@ -940,16 +1139,35 @@ function splitEachListAndKey(raw: string): { list: string; keyExpr?: string } {
   return { list: keyMatch[1].trim(), keyExpr }
 }
 
+function skipMalformedBlock(s: TokenStream) {
+  s.skipNewlines()
+  if (!s.is(TK.INDENT)) return
+
+  s.consume()
+  let depth = 1
+  while (depth > 0 && !s.is(TK.EOF) && !s.is(TK.CONTEXT_SWITCH)) {
+    if (s.is(TK.INDENT)) depth++
+    else if (s.is(TK.DEDENT)) depth--
+    s.consume()
+  }
+}
+
 // ─── Slot parser ──────────────────────────────────────────────────────────────
 
 function parseSlot(s: TokenStream): SlotDefNode | SlotUseNode {
   const tok = s.consume() // SLOT token e.g. "slot", "slot:nav", "slot:row(item, index)"
   const match = tok.value.match(/^slot(?::([a-zA-Z][\w-]*))?(?:\(([^)]*)\))?$/)
+  if (!match) {
+    s.report(`Malformed slot syntax "${tok.value}".`, tok.span, 'loom/slot-syntax')
+  }
   const name = match?.[1]
   const paramsStr = match?.[2]
   const params = paramsStr
     ? paramsStr.split(',').map((p) => p.trim()).filter(Boolean)
     : undefined
+  if (params?.some((param) => !isIdentifier(param))) {
+    s.report(`Malformed slot parameters in "${tok.value}".`, tok.span, 'loom/slot-syntax')
+  }
 
   s.skipNewlines()
 
