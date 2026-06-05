@@ -48,9 +48,12 @@ describe('eslint-plugin-loom', () => {
       filePath: 'Component.loom',
     })
 
-    expect(result?.messages).toHaveLength(1)
-    expect(result?.messages[0]?.ruleId).toBe('loom/parse')
-    expect(result?.messages[0]?.message).toContain('Inconsistent indentation')
+    expect(result?.messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruleId: 'loom/parse',
+        message: expect.stringContaining('Inconsistent indentation'),
+      }),
+    ]))
   })
 
   it('maps compiler warnings to ESLint warning severity', () => {

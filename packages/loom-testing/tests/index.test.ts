@@ -50,6 +50,6 @@ describe('@loom-ui/testing', () => {
     const result = loomMatchers.toCompileAcrossTargets(source)
 
     expect(result.pass).toBe(false)
-    expect(result.message()).toContain('loom/prop-name')
+    expect(result.message()).toContain('loom/prop-syntax')
   })
 })
