@@ -1,5 +1,3 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { basename, join, relative, resolve } from 'node:path'
 import { extractLoomStructure } from './blocks.js'
 import type { CompilerDiagnostic } from './validate.js'
 import type { ElementNode, MarkupNode, PropDecl, SourceSpan } from './ast.js'
@@ -174,12 +172,62 @@ function fallbackSpan(): SourceSpan {
 }
 
 function nodeFs(): WorkspaceFs {
-  return {
-    exists: existsSync,
-    readFile(path) {
-      return readFileSync(path, 'utf8')
-    },
-    readDir: readdirSync,
-    stat: statSync,
+  const getBuiltinModule = typeof process !== 'undefined'
+    ? (process as typeof process & { getBuiltinModule?: (name: string) => any }).getBuiltinModule
+    : undefined
+  const builtinFs = getBuiltinModule?.('node:fs') ?? getBuiltinModule?.('fs')
+  const nodeRequire = new Function('return typeof require === "function" ? require : undefined')() as NodeRequire | undefined
+  const fs = builtinFs ?? nodeRequire?.('node:fs') ?? nodeRequire?.('fs')
+  if (!fs) {
+    throw new Error('indexWorkspace requires Node fs APIs. Pass a custom WorkspaceFs in non-Node runtimes.')
   }
+
+  return {
+    exists: fs.existsSync,
+    readFile(path) {
+      return fs.readFileSync(path, 'utf8')
+    },
+    readDir: fs.readdirSync,
+    stat: fs.statSync,
+  }
+}
+
+function resolve(path: string): string {
+  if (path.startsWith('/')) return normalizePath(path)
+  const cwd = typeof process !== 'undefined' && typeof process.cwd === 'function' ? process.cwd() : '/'
+  return normalizePath(`${cwd}/${path}`)
+}
+
+function join(...parts: string[]): string {
+  return normalizePath(parts.filter(Boolean).join('/'))
+}
+
+function relative(from: string, to: string): string {
+  const fromParts = normalizePath(from).split('/').filter(Boolean)
+  const toParts = normalizePath(to).split('/').filter(Boolean)
+  while (fromParts.length > 0 && toParts.length > 0 && fromParts[0] === toParts[0]) {
+    fromParts.shift()
+    toParts.shift()
+  }
+  return [...fromParts.map(() => '..'), ...toParts].join('/') || '.'
+}
+
+function basename(path: string, suffix = ''): string {
+  const base = normalizePath(path).split('/').filter(Boolean).pop() ?? ''
+  return suffix && base.endsWith(suffix) ? base.slice(0, -suffix.length) : base
+}
+
+function normalizePath(path: string): string {
+  const absolute = path.startsWith('/')
+  const parts: string[] = []
+  for (const part of path.replace(/\\/g, '/').split('/')) {
+    if (!part || part === '.') continue
+    if (part === '..') {
+      if (parts.length > 0 && parts[parts.length - 1] !== '..') parts.pop()
+      else if (!absolute) parts.push(part)
+    } else {
+      parts.push(part)
+    }
+  }
+  return `${absolute ? '/' : ''}${parts.join('/')}` || (absolute ? '/' : '.')
 }
