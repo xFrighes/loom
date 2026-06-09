@@ -10,7 +10,7 @@ Loom migration works best as an incremental adoption path. Keep your existing Re
 
 ## Shared workflow
 
-1. Install the framework plugin you already use, `vite-plugin-loom`, and `@loom-ui/compiler`.
+1. Install the framework plugin you already use, `vite-plugin-loom`, and `@loom-kit/compiler`.
 2. Add `loom({ target })` before the framework plugin in `vite.config.ts`.
 3. Start with leaf UI: buttons, cards, empty states, badges, and presentational list rows.
 4. Keep state ownership explicit. Pass values and callbacks across the framework boundary before moving shared stores or lifecycle code.

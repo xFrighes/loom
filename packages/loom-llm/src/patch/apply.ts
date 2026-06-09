@@ -1,11 +1,11 @@
 import { readFileSync, writeFileSync } from 'node:fs'
-import { extractLoomStructure } from '@loom-ui/compiler'
+import { extractLoomStructure } from '@loom-kit/compiler'
 import type {
   LoomMarkupNodeRef,
   LoomTopLevelBlock,
   LoomTopLevelBlockKind,
   SourceSpan,
-} from '@loom-ui/compiler'
+} from '@loom-kit/compiler'
 import { hashText } from '../cache.js'
 import { verifyLoomSource } from '../indexer.js'
 import type { VerifyFileResult } from '../types.js'

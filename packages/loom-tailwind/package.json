@@ -1,6 +1,6 @@
 {
-  "name": "@loom-ui/tailwind",
-  "version": "0.1.0",
+  "name": "@loom-kit/tailwind",
+  "version": "0.1.1",
   "description": "Tailwind candidate extraction for .loom files",
   "license": "MIT",
   "repository": {
@@ -43,7 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-ui/compiler": "workspace:*"
+    "@loom-kit/compiler": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",

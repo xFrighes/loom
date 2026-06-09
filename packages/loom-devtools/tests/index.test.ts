@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { getLoomDevtoolsHook, installLoomDevtoolsHook } from '../src/index.js'
 
-describe('@loom-ui/devtools', () => {
+describe('@loom-kit/devtools', () => {
   it('registers and unregisters components', () => {
     const target = { postMessage: vi.fn() } as unknown as Window
     const hook = installLoomDevtoolsHook(target)

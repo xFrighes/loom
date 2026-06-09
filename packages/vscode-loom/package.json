@@ -1,10 +1,11 @@
 {
-  "name": "vscode-loom-ui",
+  "name": "vscode-loom-kit",
   "displayName": "Loom UI Language Support",
   "version": "0.1.4",
+  "private": true,
   "description": "Syntax highlighting, diagnostics, formatting, hovers, snippets, and preview support for Loom files",
   "license": "MIT",
-  "publisher": "loom-ui",
+  "publisher": "loom-kit",
   "icon": "icon.png",
   "repository": {
     "type": "git",

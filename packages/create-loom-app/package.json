@@ -1,6 +1,6 @@
 {
   "name": "create-loom-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Scaffold new Loom applications for React, Vue, Svelte, and LoomKit",
   "license": "MIT",
   "type": "module",

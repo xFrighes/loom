@@ -1,5 +1,5 @@
 {
-  "name": "@loom-ui/devtools",
+  "name": "@loom-kit/devtools",
   "version": "0.1.0",
   "description": "Development-only Loom DevTools runtime hook",
   "license": "MIT",

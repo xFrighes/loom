@@ -1,6 +1,6 @@
 {
-  "name": "@loom-ui/testing",
-  "version": "0.1.0",
+  "name": "@loom-kit/testing",
+  "version": "0.1.1",
   "description": "Testing helpers for Loom fixtures and Vitest assertions",
   "license": "MIT",
   "repository": {
@@ -43,7 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-ui/compiler": "workspace:*"
+    "@loom-kit/compiler": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",

@@ -1,4 +1,4 @@
-import type { CompilerDiagnostic, LoomMarkupNodeRef, LoomTopLevelBlock } from '@loom-ui/compiler'
+import type { CompilerDiagnostic, LoomMarkupNodeRef, LoomTopLevelBlock } from '@loom-kit/compiler'
 
 export type ProjectionMode = 'outline' | 'edit' | 'index'
 

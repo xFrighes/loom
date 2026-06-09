@@ -48,11 +48,13 @@ Goal: Production-grade stability and ecosystem maturity.
 - [x] **Bundle Budgets:** Enforce per-component output size limits and report what pushed a component over budget.
 
 ### 📖 Documentation & Distribution
-- [ ] **Loom.dev:** Launch the official documentation site with integrated WASM playground.
+- [/] **loom-ui.dev:** Launch the official documentation site (repository at `../loom-website` exists and includes a browser-friendly playground). Remaining work:
+  - [ ] Validate production build and deployment.
+  - [ ] Decide if "WASM playground" specifically requires compiling the Rust core (`loom_core`) to WebAssembly rather than using the current browser-friendly TypeScript compiler fallback.
 - [x] **Migration Guides:** Step-by-step paths for React, Vue, and Svelte developers.
-- [ ] **Automated Release:** NPM publishing with provenance and automated changelogs.
+- [x] **Automated Release:** NPM publishing with provenance and automated changelogs.
 - [ ] **API Reference Generator:** Generate package and language reference pages from compiler metadata, examples, and exported TypeScript declarations.
-- [ ] **Production Recipes:** Document auth forms, async data, design tokens, head metadata, i18n, and framework interop as copy-pasteable recipes.
+- [x] **Production Recipes:** Document auth forms, async data, design tokens, head metadata, i18n, and framework interop as copy-pasteable recipes.
 
 ### ✨ Advanced Language Features
 - [x] **Atomic CSS:** Optional mode for utility-first CSS generation.
@@ -73,22 +75,22 @@ Goal: Production-grade stability and ecosystem maturity.
 
 | Package | Purpose | Status |
 |:---|:---|:---|
-| `@loom-ui/compiler` | Core TS/Rust compiler | Stable |
+| `@loom-kit/compiler` | Core TS/Rust compiler | Stable |
 | `loom_core` | Rust-based lexer, parser, and indexer | Stable |
 | `vite-plugin-loom` | Primary bundler integration | Stable |
-| `@loom-ui/kit` | Meta-framework primitives (Routing/SSR) | Stable |
-| `@loom-ui/devtools` | Unified debugging runtime hooks | Stable |
+| `@loom-kit/kit` | Meta-framework primitives (Routing/SSR) | Stable |
+| `@loom-kit/devtools` | Unified debugging runtime hooks | Stable |
 | `loom-llm` | Token-optimized projection for AI | Stable |
 | `loom-testing` | Framework-agnostic test helpers | Stable |
 | `eslint-plugin-loom` | Linting & static analysis | Stable |
-| `@loom-ui/codemod` | CLI for React-to-Loom migration | Stable |
-| `@loom-ui/tailwind` | Static Tailwind CSS extraction | Stable |
-| `@loom-ui/playground` | Browser-friendly compiler API | Stable |
+| `@loom-kit/codemod` | CLI for React-to-Loom migration | Stable |
+| `@loom-kit/tailwind` | Static Tailwind CSS extraction | Stable |
+| `@loom-kit/playground` | Browser-friendly compiler API | Stable |
 | `rollup-plugin-loom` | Rollup integration | Stable |
 | `esbuild-plugin-loom` | esbuild integration | Stable |
 | `rspack-plugin-loom` | Rspack integration | Stable |
 | `webpack-loader-loom` | Webpack integration | Stable |
-| `@loom-ui/ui` | Headless UI primitives | Stable |
+| `@loom-kit/ui` | Headless UI primitives | Stable |
 
 ---
 
@@ -108,6 +110,8 @@ These are high-upside ideas from `updates.md` that need validation before they b
 
 ## 📜 Recent Highlights (Completed)
 
+- [x] **Create Loom App CLI Upgrade:** Add a polished scaffolding CLI with richer starter metadata, safer flags, optional git/install handoff, and stronger starter files.
+- [x] **Create Loom App Wizard:** Add emoji-rich interactive prompts, framework/package-manager selection, and Loom ecosystem add-on choices for first-run setup.
 - [x] **Rust Migration:** Lexer, Parser, and Indexer successfully ported and integrated via NAPI/WASM.
 - [x] **Bundler Expansion:** Official support for Rollup, esbuild, Webpack, and Rspack.
 - [x] **Developer Experience:** Full source maps, Language Server (diagnostics/hover), and canonical Printer.
@@ -127,7 +131,7 @@ bun run build            # Build all packages
 bun run test             # Run all tests
 
 # Package Specifics
-bun run --filter @loom-ui/compiler test
+bun run --filter @loom-kit/compiler test
 bun run --filter loom_core test
 bun run --filter vite-plugin-loom build
 ```

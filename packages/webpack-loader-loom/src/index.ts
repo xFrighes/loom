@@ -1,6 +1,6 @@
 import path from 'node:path'
-import { compile } from '@loom-ui/compiler'
-import type { AdvancedCompileOptions } from '@loom-ui/compiler'
+import { compile } from '@loom-kit/compiler'
+import type { AdvancedCompileOptions } from '@loom-kit/compiler'
 
 export type LoomWebpackTarget = 'react' | 'vue' | 'svelte'
 

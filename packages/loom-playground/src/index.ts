@@ -1,5 +1,5 @@
-import { analyze, compile, formatDiagnostic } from '@loom-ui/compiler'
-import type { CompileOptions, CompilerDiagnostic, CompileResult } from '@loom-ui/compiler'
+import { analyze, compile, formatDiagnostic } from '@loom-kit/compiler'
+import type { CompileOptions, CompilerDiagnostic, CompileResult } from '@loom-kit/compiler'
 
 export type PlaygroundTarget = CompileOptions['target']
 

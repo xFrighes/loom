@@ -7,7 +7,7 @@ Use Loom in React when you want to shrink JSX-heavy leaf components while keepin
 Install the packages used by the React demo shape:
 
 ```bash
-npm install -D @vitejs/plugin-react vite-plugin-loom @loom-ui/compiler @loom-ui/codemod
+npm install -D @vitejs/plugin-react vite-plugin-loom @loom-kit/compiler @loom-kit/codemod
 ```
 
 Configure Loom before React so `.loom` files resolve through the Loom compiler first.

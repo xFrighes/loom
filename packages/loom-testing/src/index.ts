@@ -1,4 +1,4 @@
-import { compile, type CompileResult } from '@loom-ui/compiler'
+import { compile, type CompileResult } from '@loom-kit/compiler'
 
 export type LoomCompileTarget = 'react' | 'vue' | 'svelte'
 

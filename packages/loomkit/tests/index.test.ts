@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createRouteEntry, json, matchRoute, parseRouteSegments, routePathFromFile } from '../src/index.js'
 
-describe('@loom-ui/kit', () => {
+describe('@loom-kit/kit', () => {
   it('derives paths from route files', () => {
     expect(routePathFromFile('src/routes/page.loom')).toBe('/')
     expect(routePathFromFile('src/routes/blog/[slug]/page.loom')).toBe('/blog/[slug]')

@@ -5,7 +5,7 @@ import {
   extractTailwindClassList,
 } from '../src/index.js'
 
-describe('@loom-ui/tailwind', () => {
+describe('@loom-kit/tailwind', () => {
   it('extracts shorthand classes and static class attrs', () => {
     const source = [
       '- view',

@@ -7,7 +7,7 @@ import {
   playgroundTutorialLessons,
 } from '../src/index.js'
 
-describe('@loom-ui/playground', () => {
+describe('@loom-kit/playground', () => {
   it('compiles the default source', () => {
     const result = compilePlayground({ source: defaultPlaygroundSource, target: 'react' })
     expect(result.ok).toBe(true)

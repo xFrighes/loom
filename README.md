@@ -98,7 +98,7 @@ pnpm run verify
 
 ```bash
 # Run tests for the compiler
-pnpm --filter @loom-ui/compiler test
+pnpm --filter @loom-kit/compiler test
 
 # Build all packages
 pnpm -r build

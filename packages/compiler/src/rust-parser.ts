@@ -5,7 +5,7 @@ try {
   // In production, this would be a published package.
   // In development, we look in the build directory.
   const nodeRequire = new Function('return typeof require === "function" ? require : undefined')() as NodeRequire | undefined
-  rustCore = nodeRequire?.('@loom-ui/loom_core') ?? null
+  rustCore = nodeRequire?.('@loom-kit/loom_core') ?? null
 } catch {
   // Fallback or silent fail if not built yet
   // console.warn('Rust core not found, falling back to TS parser')

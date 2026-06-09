@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { formatLoom } from '@loom-ui/compiler'
+import { formatLoom } from '@loom-kit/compiler'
 import {
   applyPatchBundleToFile,
   createUnifiedDiff,

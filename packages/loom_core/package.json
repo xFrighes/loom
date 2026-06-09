@@ -1,5 +1,5 @@
 {
-  "name": "@loom-ui/loom_core",
+  "name": "@loom-kit/loom_core",
   "version": "0.1.0",
   "description": "Rust-based core for the Loom language",
   "main": "index.js",
@@ -7,10 +7,13 @@
   "napi": {
     "name": "loom_core",
     "package": {
-      "name": "@loom-ui/loom_core"
+      "name": "@loom-kit/loom_core"
     }
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.4"
   },
@@ -19,5 +22,10 @@
     "build:debug": "napi build --platform",
     "prepublishOnly": "napi prepublish -t npm",
     "test": "echo \"Rust tests skipped due to napi linking\""
+  },
+  "optionalDependencies": {
+    "@loom-kit/loom_core-win32-x64-msvc": "0.1.0",
+    "@loom-kit/loom_core-darwin-x64": "0.1.0",
+    "@loom-kit/loom_core-linux-x64-gnu": "0.1.0"
   }
 }

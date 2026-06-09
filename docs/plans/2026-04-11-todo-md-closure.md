@@ -52,7 +52,7 @@
 
 1. Ship both a transform helper and a small Vitest-oriented assertion helper.
 2. Add one representative example per framework in tests.
-3. Run: `pnpm --filter @loom-ui/testing test`
+3. Run: `pnpm --filter @loom-kit/testing test`
 
 ### Task 4: Add Tailwind extraction support
 
@@ -70,7 +70,7 @@
 
 1. Implement static class extraction from shorthand classes and static `class` attrs.
 2. Explicitly leave dynamic expressions out of extracted output while returning them as metadata for future tooling.
-3. Run: `pnpm --filter @loom-ui/tailwind test`
+3. Run: `pnpm --filter @loom-kit/tailwind test`
 
 ### Task 5: Add ESLint integration
 
@@ -101,7 +101,7 @@
 
 1. Add tests for no-op round trips and token-savings measurement outputs.
 2. Confirm the projection cache remains disposable and source files stay canonical.
-3. Run: `pnpm --filter @loom-ui/loom-llm test`
+3. Run: `pnpm --filter @loom-kit/loom-llm test`
 
 ### Task 7: Rewrite TODO.md to separate done work from backlog
 

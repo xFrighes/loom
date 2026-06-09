@@ -5,7 +5,7 @@ Use Loom in Svelte apps for new or leaf components where the markup is mostly de
 ## Vite setup
 
 ```bash
-npm install -D @sveltejs/vite-plugin-svelte vite-plugin-loom @loom-ui/compiler @loom-ui/codemod
+npm install -D @sveltejs/vite-plugin-svelte vite-plugin-loom @loom-kit/compiler @loom-kit/codemod
 ```
 
 ```typescript

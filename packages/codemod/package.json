@@ -1,5 +1,5 @@
 {
-  "name": "@loom-ui/codemod",
+  "name": "@loom-kit/codemod",
   "version": "0.1.0",
   "description": "CLI codemod tool to convert React components to Loom",
   "license": "MIT",
@@ -7,6 +7,9 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "loom-codemod": "./dist/cli.js"
   },

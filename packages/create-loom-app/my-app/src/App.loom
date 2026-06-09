@@ -1,0 +1,102 @@
+- props
+  launchLabel: string = 'Open src/App.loom'
+
+- state
+  count: number = 0
+
+- computed
+  doubled = count * 2
+
+- ts
+  const features = [
+    'One .loom component can target React, Vue, or Svelte',
+    'Zones keep state, markup, and styles in predictable places',
+    'Dimension-driven UI scales without scattering framework glue',
+  ]
+
+- view
+  main.shell
+    ::
+      min-height 100vh
+      display grid
+      place-content center
+      gap 28px
+      padding 56px 24px
+      color #17202a
+
+    section.hero
+      ::
+        max-width 760px
+
+      p.eyebrow React starter
+        ::
+          text-transform uppercase
+          letter-spacing 0.12em
+          font-size 0.78rem
+          font-weight 800
+          color #4568f0
+
+      h1 React Loom Starter
+        ::
+          margin 0
+          font-size clamp(2.5rem, 7vw, 5.6rem)
+          line-height 0.95
+
+      p.lede Build in Loom, keep the framework output boring, typed, and easy to ship.
+        ::
+          max-width 620px
+          font-size 1.18rem
+          line-height 1.7
+          color #4a5568
+
+      div.actions
+        ::
+          display flex
+          flex-wrap wrap
+          align-items center
+          gap 14px
+          margin-top 24px
+
+        button.primary {launchLabel}
+          ::
+            border 0
+            border-radius 8px
+            padding 12px 18px
+            background #17202a
+            color white
+            font-weight 800
+            cursor pointer
+          @click
+            count = count + 1
+
+        span.counter Clicks: {count} / doubled: {doubled}
+          ::
+            color #4a5568
+            font-weight 700
+
+    section.panel
+      ::
+        max-width 760px
+        border 1px solid #d8deea
+        border-radius 8px
+        padding 24px
+        background white
+
+      h2 What is ready
+      ul
+        ::
+          margin 0
+          padding-left 20px
+
+        each feature in features
+          li {feature}
+            ::
+              margin 10px 0
+
+    section.next
+      ::
+        max-width 760px
+        color #4a5568
+
+      h2 Next move
+      p Use this when you want Loom inside a familiar React app shell.

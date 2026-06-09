@@ -149,7 +149,7 @@ function relative(filePath) {
 
 async function importCompiler() {
   try {
-    return await import('@loom-ui/compiler')
+    return await import('@loom-kit/compiler')
   } catch (error) {
     if (error?.code !== 'ERR_MODULE_NOT_FOUND') throw error
     try {

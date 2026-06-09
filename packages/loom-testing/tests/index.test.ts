@@ -3,7 +3,7 @@ import { assertCompiles, compileFixture, compileForTargets, loomMatchers } from 
 
 expect.extend(loomMatchers)
 
-describe('@loom-ui/testing', () => {
+describe('@loom-kit/testing', () => {
   it('exposes a per-target compile helper', () => {
     const source = '- view\nbutton Click'
     const react = compileFixture(source, 'react')

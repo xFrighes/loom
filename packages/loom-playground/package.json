@@ -1,6 +1,6 @@
 {
-  "name": "@loom-ui/playground",
-  "version": "0.1.0",
+  "name": "@loom-kit/playground",
+  "version": "0.1.1",
   "description": "Browser-friendly Loom playground compiler API",
   "license": "MIT",
   "type": "module",
@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@loom-ui/compiler": "workspace:*"
+    "@loom-kit/compiler": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",

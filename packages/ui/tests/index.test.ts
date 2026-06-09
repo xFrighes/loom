@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createDialog, createDisclosure, createModal } from '../src/index.js'
 
-describe('@loom-ui/ui', () => {
+describe('@loom-kit/ui', () => {
   it('creates stable disclosure trigger props and notifies subscribers', () => {
     const onOpenChange = vi.fn()
     const disclosure = createDisclosure({ onOpenChange })

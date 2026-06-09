@@ -4,11 +4,16 @@
   "version": "0.0.0",
   "scripts": {
     "build": "bun run --filter '*' build",
+    "changeset": "changeset",
+    "release:publish": "bun run build && changeset publish",
+    "release:status": "changeset status --verbose",
     "test": "bun run --filter '*' test",
     "typecheck": "bun run --filter '*' typecheck",
+    "version-packages": "changeset version",
     "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "typescript": "^5.4.0"
   },
   "workspaces": [

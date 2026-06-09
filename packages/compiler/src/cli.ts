@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, readdirSync, statSync, watch, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync, watch, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { analyze, compile, CompileError, formatDiagnostic } from './index.js'
@@ -278,7 +278,7 @@ function checkPackageVersions(root: string, fs: DoctorFs): DoctorCheck {
 
   const pkg = JSON.parse(fs.readFile(packagePath, 'utf8'))
   const allDeps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
-  const loomPackages = Object.keys(allDeps).filter((name) => name === 'vite-plugin-loom' || name.startsWith('@loom-ui/'))
+  const loomPackages = Object.keys(allDeps).filter((name) => name === 'vite-plugin-loom' || name.startsWith('@loom-kit/'))
   const broken = loomPackages.filter((name) => String(allDeps[name]).includes('0.0.0'))
 
   if (broken.length > 0) {
@@ -295,7 +295,7 @@ function checkPackageVersions(root: string, fs: DoctorFs): DoctorCheck {
       code: 'loom/doctor-package',
       status: 'warn',
       message: 'No Loom package dependencies found.',
-      suggestion: 'Install vite-plugin-loom or @loom-ui/compiler before compiling .loom files.',
+      suggestion: 'Install vite-plugin-loom or @loom-kit/compiler before compiling .loom files.',
     }
   }
 
@@ -426,8 +426,14 @@ function defaultIo(): CliIo {
   }
 }
 
-const isEntrypoint =
-  process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))
+const isEntrypoint = (() => {
+  if (!process.argv[1]) return false
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+  } catch {
+    return false
+  }
+})()
 if (isEntrypoint) {
   runCli(process.argv)
 }

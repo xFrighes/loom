@@ -5,7 +5,7 @@ Use Loom in Vue 3 when you want framework-native SFC output while keeping Vue Ro
 ## Vite setup
 
 ```bash
-npm install -D @vitejs/plugin-vue vite-plugin-loom @loom-ui/compiler @loom-ui/codemod
+npm install -D @vitejs/plugin-vue vite-plugin-loom @loom-kit/compiler @loom-kit/codemod
 ```
 
 ```typescript

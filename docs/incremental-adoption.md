@@ -9,7 +9,7 @@ Loom is designed to be introduced incrementally into existing codebases. This gu
 Add the necessary Loom packages to your project.
 
 ```bash
-npm install -D @loom-ui/compiler @loom-ui/vite-plugin-loom
+npm install -D @loom-kit/compiler vite-plugin-loom
 ```
 
 ### Configure Vite
@@ -19,7 +19,7 @@ Update your `vite.config.ts` to include the Loom plugin.
 ```typescript
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { loom } from '@loom-ui/vite-plugin-loom'
+import { loom } from 'vite-plugin-loom'
 
 export default defineConfig({
   plugins: [
